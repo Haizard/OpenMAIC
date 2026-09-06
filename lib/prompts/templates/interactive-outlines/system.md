@@ -59,15 +59,106 @@ Produce a **`courseTitle`** (required): a concise, human-readable name for the *
 ### 1. Simulation Widget (`simulation`)
 Canvas-based simulations for physics, chemistry, biology, engineering.
 
-**Best for:**
+**Two modes:**
+
+**A. Parameter Explorer mode** (default) — for exploring how variables affect outcomes:
 - Physics: projectile motion, forces, circuits, waves
-- Chemistry: molecular structure, reactions, pH
-- Biology: cell processes, ecosystems
+- Chemistry: pH, concentration, reaction rates
+- Biology: population dynamics, enzyme kinetics
 - Math: function graphing, probability
 
 **Output in widgetOutline:**
 - `concept`: The scientific concept name
 - `keyVariables`: List of controllable parameters (e.g., ["angle", "velocity", "mass"])
+
+**B. Practical Lab mode** — for step-through experiment walkthroughs (chemistry/physics practicals):
+- Chemistry practicals: preparation of gases, separation techniques, titration, salt preparation, tests for ions, flame tests
+- Physics practicals: Ohm's law, lens experiments, pendulum, density measurement, Specific heat capacity
+- Any experiment with a procedure, apparatus, observations, and conclusions
+
+**Output in widgetOutline for Practical Lab mode:**
+- `concept`: The experiment name
+- `objective`: What the experiment aims to demonstrate
+- `procedureSteps`: Array of step objects, each with:
+  - `title`: Step title
+  - `description`: What to do
+  - `apparatus`: Array of apparatus names (e.g., ["test tube", "delivery tube"])
+  - `chemicals`: Array of chemicals/materials (e.g., ["zinc granules", "dilute HCl"])
+  - `observation`: What to observe
+  - `inference`: What the observation means
+  - `conclusion`: What can be concluded
+  - `visual`: Visual type hint ("add-solid", "pour-liquid", "bring-flame", "assembled-apparatus")
+  - `reaction`: Object with reaction details:
+    - `equation`: Balanced chemical equation (LaTeX format)
+    - `colorChange`: "from_color -> to_color" or null
+    - `gasProduced`: boolean
+    - `bubbles`: boolean
+    - `precipitate`: color or null
+    - `temperature`: "rises", "falls", or "unchanged"
+  - `test`: Object for testing steps:
+    - `method`: How to test
+    - `result`: What happens
+    - `conclusion`: What the result means
+- `apparatus`: Array of all apparatus used
+- `chemicals`: Array of all chemicals/materials
+- `safetyNotes`: Array of safety warnings
+- `equations`: Array of balanced equations (LaTeX)
+- `conclusionQuestions`: Array of end-of-experiment questions
+
+**Example Practical Lab widgetOutline:**
+```json
+{
+  "concept": "preparation_of_hydrogen",
+  "objective": "Prepare and test hydrogen gas using zinc and dilute HCl",
+  "procedureSteps": [
+    {
+      "title": "Set up apparatus",
+      "description": "Assemble the delivery tube through the stopper into the test tube",
+      "apparatus": ["test tube", "delivery tube", "gas jar", "trough", "water"],
+      "visual": "assembled-apparatus"
+    },
+    {
+      "title": "Add zinc granules",
+      "description": "Place zinc granules into the test tube",
+      "chemicals": ["zinc granules"],
+      "observation": "Grey metallic solid placed in test tube",
+      "inference": "Zinc is a grey metal",
+      "visual": "add-solid"
+    },
+    {
+      "title": "Add dilute hydrochloric acid",
+      "description": "Carefully pour dilute HCl into the test tube",
+      "chemicals": ["dilute HCl"],
+      "observation": "Effervescence observed; colourless gas collected over water",
+      "inference": "Hydrogen gas is produced",
+      "reaction": {
+        "equation": "Zn(s) + 2HCl(aq) \\rightarrow ZnCl_2(aq) + H_2(g)",
+        "gasProduced": true,
+        "bubbles": true,
+        "temperature": "rises"
+      },
+      "visual": "pour-liquid"
+    },
+    {
+      "title": "Test for hydrogen",
+      "description": "Bring a burning splint near the mouth of the gas jar",
+      "observation": "A 'pop' sound is heard",
+      "inference": "The gas is hydrogen",
+      "test": {
+        "method": "Bring a burning splint near the gas jar",
+        "result": "A 'pop' sound is heard",
+        "conclusion": "The gas is hydrogen"
+      },
+      "visual": "bring-flame"
+    }
+  ],
+  "apparatus": ["test tube", "delivery tube", "gas jar", "trough", "water"],
+  "chemicals": ["zinc granules", "dilute HCl"],
+  "safetyNotes": ["Dilute acid is corrosive", "Hydrogen is flammable"],
+  "equations": ["Zn(s) + 2HCl(aq) \\rightarrow ZnCl_2(aq) + H_2(g)"],
+  "conclusionQuestions": ["Why is hydrogen collected over water?", "Write the ionic equation"]
+}
+```
 
 **Design Principles:**
 - Mobile-first layout: Controls MUST NOT overlap canvas on mobile
@@ -158,14 +249,20 @@ Interactive 3D scenes using Three.js for immersive learning experiences.
 
 | Content Type | Recommended Widget | Reason |
 |--------------|-------------------|--------|
-| Physics formulas/concepts | simulation | Let students EXPERIMENT with variables |
-| Step-by-step processes | diagram | Visual walkthrough with reveal |
+| Physics formulas/concepts | simulation (parameter explorer) | Let students EXPERIMENT with variables |
+| **Chemistry practicals/experiments** | **simulation (practical lab mode)** | **Step-through procedure with apparatus, reactions, observations** |
+| **Physics practicals/experiments** | **simulation (practical lab mode)** | **Step-through procedure with measurements, instruments, data** |
+| **Separation techniques** | **simulation (practical lab mode)** | **Visual walkthrough of filtration, distillation, crystallization** |
+| **Gas preparation & testing** | **simulation (practical lab mode)** | **Apparatus setup, reaction animation, gas test visualization** |
+| **Titration** | **simulation (practical lab mode)** | **Burette, indicator color change, endpoint detection** |
+| **Flame tests & ion tests** | **simulation (practical lab mode)** | **Flame colors, precipitate formation, observation recording** |
+| Step-by-step processes (non-lab) | diagram | Visual walkthrough with reveal |
 | Programming concepts | code | Hands-on coding practice |
 | Practice/challenge | game (action) | FUN gameplay to apply knowledge |
 | Concept relationships | diagram | Visual connections |
-| Force/motion problems | simulation + game | Simulate physics, gamify the challenge |
+| Force/motion problems | simulation (parameter explorer) + game | Simulate physics, gamify the challenge |
 | 3D structures/models | visualization3d | Immersive 3D exploration |
-| Molecular/anatomical models | visualization3d | Spatial understanding in 3D |
+| **Molecular structures** | **visualization3d (molecular)** | **3D atoms, bonds, electron clouds** |
 | Solar system/astronomy | visualization3d | Scale and orbit visualization |
 
 ## Widget Distribution Guidelines

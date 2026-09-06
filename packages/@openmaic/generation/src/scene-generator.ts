@@ -1138,17 +1138,64 @@ export async function generateWidgetContent(
   let variables: Record<string, unknown>;
 
   switch (widgetType) {
-    case 'simulation':
+    case 'simulation': {
       promptId = PROMPT_IDS.SIMULATION_CONTENT;
+      // Practical lab mode: when widgetOutline contains procedureSteps,
+      // pass them to the prompt so it generates a step-through lab simulation
+      // instead of a generic parameter-explorer.
+      const procedureSteps = widgetOutline.procedureSteps ?? [];
+      const hasProcedure = procedureSteps.length > 0;
       variables = {
         conceptName: widgetOutline.concept || outline.title,
         conceptOverview: outline.description,
         keyPoints: (outline.keyPoints || []).join('\n'),
         variables: widgetOutline.keyVariables?.join(', ') || '',
-        designIdea: '',
+        designIdea: widgetOutline.designIdea || '',
         languageDirective: languageDirective || '',
+        // Practical lab fields (only populated when procedureSteps exist)
+        procedureSteps: hasProcedure,
+        procedureStepsText: hasProcedure
+          ? procedureSteps
+              .map((step, i) => {
+                const parts = [`Step ${i + 1}: ${step.title || ''}`];
+                if (step.description) parts.push(`  ${step.description}`);
+                if (Array.isArray(step.apparatus) && step.apparatus.length) parts.push(`  Apparatus: ${step.apparatus.join(', ')}`);
+                if (Array.isArray(step.chemicals) && step.chemicals.length) parts.push(`  Chemicals: ${step.chemicals.join(', ')}`);
+                if (step.observation) parts.push(`  Observation: ${step.observation}`);
+                if (step.inference) parts.push(`  Inference: ${step.inference}`);
+                if (step.conclusion) parts.push(`  Conclusion: ${step.conclusion}`);
+                if (step.visual) parts.push(`  Visual type: ${step.visual}`);
+                if (step.reaction && typeof step.reaction === 'object') {
+                  const rxn = step.reaction as Record<string, unknown>;
+                  if (rxn.equation) parts.push(`  Equation: ${rxn.equation}`);
+                  if (rxn.colorChange) parts.push(`  Color change: ${rxn.colorChange}`);
+                  if (rxn.gasProduced) parts.push(`  Gas produced: yes`);
+                  if (rxn.bubbles) parts.push(`  Bubbles: yes`);
+                  if (rxn.precipitate) parts.push(`  Precipitate: ${rxn.precipitate}`);
+                  if (rxn.temperature) parts.push(`  Temperature: ${rxn.temperature}`);
+                }
+                if (step.test && typeof step.test === 'object') {
+                  const test = step.test as Record<string, unknown>;
+                  parts.push(`  Test method: ${test.method || ''}`);
+                  parts.push(`  Test result: ${test.result || ''}`);
+                  if (test.conclusion) parts.push(`  Test conclusion: ${test.conclusion}`);
+                }
+                return parts.join('\n');
+              })
+              .join('\n\n')
+          : '',
+        objective: widgetOutline.objective || '',
+        apparatusList: Array.isArray(widgetOutline.apparatus) ? widgetOutline.apparatus.join(', ') : '',
+        chemicalsList: Array.isArray(widgetOutline.chemicals) ? widgetOutline.chemicals.join(', ') : '',
+        safetyNotes: Array.isArray(widgetOutline.safetyNotes) && widgetOutline.safetyNotes.length > 0,
+        safetyNotesText: Array.isArray(widgetOutline.safetyNotes) ? widgetOutline.safetyNotes.join('. ') : '',
+        equations: Array.isArray(widgetOutline.equations) && widgetOutline.equations.length > 0,
+        equationsText: Array.isArray(widgetOutline.equations) ? widgetOutline.equations.join('\n') : '',
+        conclusionQuestions: Array.isArray(widgetOutline.conclusionQuestions) && widgetOutline.conclusionQuestions.length > 0,
+        conclusionQuestionsText: Array.isArray(widgetOutline.conclusionQuestions) ? widgetOutline.conclusionQuestions.join('\n') : '',
       };
       break;
+    }
 
     case 'diagram': {
       const prescribedNodes = widgetOutline.nodes ?? [];

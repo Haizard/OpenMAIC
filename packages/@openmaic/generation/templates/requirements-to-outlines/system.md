@@ -138,17 +138,20 @@ When comparing or listing information, specify in keyPoints:
 Use `interactive` type when a concept benefits significantly from hands-on interaction and visualization. Good candidates include:
 
 - **Physics simulations**: Force composition, projectile motion, wave interference, circuits
+- **Physics practicals**: Ohm's law experiment, lens/mirror experiments, pendulum, density measurement, specific heat capacity
 - **Math visualizations**: Function graphing, geometric transformations, probability distributions
 - **Data exploration**: Interactive charts, statistical sampling, regression fitting
 - **Chemistry**: Molecular structure, reaction balancing, pH titration
+- **Chemistry practicals**: Gas preparation, separation techniques, titration, salt preparation, tests for ions, flame tests, acid-base reactions
 - **Programming concepts**: Algorithm visualization, data structure operations
 
 **Constraints**:
 
 - Limit to **1-2 interactive scenes per course** (they are resource-intensive)
-- Interactive scenes **require** an `interactiveConfig` object
+- Interactive scenes **require** an `interactiveConfig` object (deprecated) or `widgetType` + `widgetOutline`
 - Do NOT use interactive for purely textual/conceptual content - use slides instead
 - The `interactiveConfig.designIdea` should describe the specific interactive elements and user interactions
+- **For practical experiments**: Use `simulation` widgetType with practical lab fields in `widgetOutline` (see Widget Type Selection below)
 
 ### Widget Type Selection for Interactive Scenes
 
@@ -159,6 +162,8 @@ When generating an interactive scene, you MUST select the appropriate widget typ
 | Concept Characteristics | Widget Type | widgetOutline Fields |
 |-------------------------|-------------|---------------------|
 | Physics/chemistry phenomena with adjustable parameters | `simulation` | `concept`, `keyVariables` |
+| **Chemistry practicals/experiments** | **`simulation`** | **`concept`, `objective`, `procedureSteps`, `apparatus`, `chemicals`, `safetyNotes`, `equations`, `conclusionQuestions`** |
+| **Physics practicals/experiments** | **`simulation`** | **`concept`, `objective`, `procedureSteps`, `apparatus`, `safetyNotes`, `conclusionQuestions`** |
 | Processes, workflows, cause-effect chains | `diagram` | `diagramType` |
 | Programming concepts, algorithms | `code` | `language` |
 | Practice activities, gamified assessment | `game` | `gameType`, `challenge` |
@@ -167,10 +172,41 @@ When generating an interactive scene, you MUST select the appropriate widget typ
 **widgetOutline Format by Type:**
 
 ```json
-// simulation
+// simulation (parameter explorer)
 "widgetOutline": {
   "concept": "concept_name",
   "keyVariables": ["variable1", "variable2"]
+}
+
+// simulation (practical lab mode — for experiments with procedures)
+"widgetOutline": {
+  "concept": "experiment_name",
+  "objective": "What the experiment demonstrates",
+  "procedureSteps": [
+    {
+      "title": "Step title",
+      "description": "What to do",
+      "apparatus": ["apparatus1", "apparatus2"],
+      "chemicals": ["chemical1", "chemical2"],
+      "observation": "What to observe",
+      "inference": "What it means",
+      "conclusion": "What can be concluded",
+      "visual": "visual-type-hint",
+      "reaction": {
+        "equation": "LaTeX equation",
+        "colorChange": "from -> to" or null,
+        "gasProduced": true/false,
+        "bubbles": true/false,
+        "precipitate": "color" or null,
+        "temperature": "rises/falls/unchanged"
+      }
+    }
+  ],
+  "apparatus": ["all apparatus used"],
+  "chemicals": ["all chemicals used"],
+  "safetyNotes": ["safety warning 1", "safety warning 2"],
+  "equations": ["balanced equation in LaTeX"],
+  "conclusionQuestions": ["question 1", "question 2"]
 }
 
 // diagram
@@ -197,6 +233,8 @@ When generating an interactive scene, you MUST select the appropriate widget typ
 ```
 
 **CRITICAL:** Every interactive scene MUST include both `widgetType` and `widgetOutline` fields. Interactive scenes without these are INVALID.
+
+**For practical experiments**: When the requirement describes an experiment, practical, or procedure (e.g., "prepare hydrogen gas", "separation techniques", "acid-base titration", "Ohm's law experiment"), ALWAYS use `simulation` with the full practical lab `widgetOutline` format above. Include ALL procedure steps with apparatus, chemicals, observations, inferences, equations, and safety notes. This generates a step-through lab simulation instead of a generic parameter explorer.
 
 ### PBL Scene Guidelines
 

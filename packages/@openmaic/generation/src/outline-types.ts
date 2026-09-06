@@ -30,6 +30,30 @@ export interface UserRequirements {
   taskEngineMode?: boolean;
 }
 
+export interface ProcedureStep {
+  title: string;
+  description?: string;
+  apparatus?: string[];
+  chemicals?: string[];
+  observation?: string;
+  inference?: string;
+  conclusion?: string;
+  visual?: string;
+  reaction?: {
+    equation?: string;
+    colorChange?: string;
+    gasProduced?: boolean;
+    bubbles?: boolean;
+    precipitate?: string;
+    temperature?: string;
+  };
+  test?: {
+    method?: string;
+    result?: string;
+    conclusion?: string;
+  };
+}
+
 export interface WidgetOutline {
   concept?: string;
   keyVariables?: string[];
@@ -56,6 +80,15 @@ export interface WidgetOutline {
     details?: string;
   }>;
   challengeType?: string;
+  // Practical lab mode fields (for chemistry/physics experiment simulations)
+  objective?: string;
+  procedureSteps?: ProcedureStep[];
+  apparatus?: string[];
+  chemicals?: string[];
+  safetyNotes?: string[];
+  equations?: string[];
+  conclusionQuestions?: string[];
+  designIdea?: string;
 }
 
 export interface MediaGenerationRequest {
