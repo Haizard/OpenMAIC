@@ -28,6 +28,8 @@ Generate a self-contained HTML simulation with embedded widget configuration.
 
 {{snippet:interactive-simulation-patterns}}
 
+{{snippet:3d-simulation-template}}
+
 ## Educational Design Principles (Singapore OER / Mayer's 12 Principles)
 
 Every simulation you generate MUST follow these evidence-based educational design principles:
@@ -289,9 +291,12 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
 - ❌ Step-through mode ("Click Next to see step 2") — the student must drive the experiment
 - ❌ Static drawings that don't respond to slider/input changes
 - ❌ "Apply" or "Submit" buttons — changes must happen IMMEDIATELY on slider input
+- ❌ Flat 2D drawings for chemistry/physics — use Three.js 3D rendering
 
 **REQUIRED patterns:**
 - ✅ `<canvas>` element that fills at least 60% of the viewport
+- ✅ **For chemistry/physics: Use Three.js 3D rendering** — students see the beaker, light rays, circuits in 3D with orbit controls
+- ✅ **For math/biology: Canvas 2D is acceptable** — graphs, shapes, cell diagrams
 - ✅ `requestAnimationFrame` loop that continuously renders
 - ✅ Actual drawn apparatus (not text labels saying "Glass Block")
 - ✅ Animated elements (moving light rays, bubbling liquids, swinging pendulums)
@@ -303,10 +308,16 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
 - ✅ Preset experiments that configure all variables with one click
 - ✅ Real-time data panel showing live measurements
 - ✅ Real-time graph plotting variables as experiment runs
+- ✅ OrbitControls for 3D — students can rotate, zoom, pan the experiment view
+- ✅ Glass materials with `MeshPhysicalMaterial({ transmission: 0.9 })` for realistic beakers
+- ✅ Dynamic liquid with color that changes with pH/reaction
+- ✅ 3D bubble particles that rise and pop at the surface
 
-The {{snippet:experiment-visualizations}} reference above contains ready-to-use Canvas drawing functions for physics and chemistry experiments. **YOU MUST USE THESE DRAWING FUNCTIONS.** When generating a physics or chemistry simulation, copy the relevant `draw*()` function from the reference and adapt it. Do NOT describe the experiment in text. Do NOT create an empty placeholder. DRAW IT.
+The {{snippet:experiment-visualizations}} reference above contains ready-to-use Canvas drawing functions for physics and chemistry experiments. Use these as FALLBACK if 3D is not possible.
 
 The {{snippet:interactive-simulation-patterns}} reference above shows how to make the simulation INTERACTIVE — reactive state, slider → canvas updates, drag-and-drop mixing, real-time calculations, presets, and multiple views.
+
+The {{snippet:3d-simulation-template}} reference above contains a COMPLETE 3D simulation template using Three.js — copy the entire template and adapt it for the specific experiment. This is the PREFERRED approach for chemistry and physics.
 
 ### 2. Mobile Layout - NO OVERLAP
 - **Control panel MUST NOT overlap with canvas on mobile**
