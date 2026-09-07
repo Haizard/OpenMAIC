@@ -9,8 +9,11 @@
  */
 
 import { proxyFetch } from '@/lib/server/proxy-fetch';
+import { createLogger } from '@/lib/logger';
 import type { WebSearchResult, WebSearchSource } from '@/lib/types/web-search';
 import { normalizeWebSearchQuery } from './utils';
+
+const log = createLogger('WebSearch:Brave');
 
 const BRAVE_DEFAULT_BASE_URL = 'https://search.brave.com';
 
@@ -117,43 +120,58 @@ async function searchWithBraveApi(
   maxResults: number,
   signal?: AbortSignal,
 ): Promise<WebSearchSource[]> {
-  const url = new URL('/res/v1/web/search', BRAVE_API_BASE_URL);
-  url.searchParams.set('q', query);
-  url.searchParams.set('count', String(Math.min(maxResults, 20)));
+  const MAX_RETRIES = 3;
+  const BASE_DELAY_MS = 2000;
 
-  const res = await proxyFetch(url.toString(), {
-    method: 'GET',
-    headers: {
-      'X-Subscription-Token': apiKey,
-      Accept: 'application/json',
-    },
-    ...(signal ? { signal } : {}),
-  });
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const url = new URL('/res/v1/web/search', BRAVE_API_BASE_URL);
+    url.searchParams.set('q', query);
+    url.searchParams.set('count', String(Math.min(maxResults, 20)));
 
-  if (!res.ok) {
+    const res = await proxyFetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'X-Subscription-Token': apiKey,
+        Accept: 'application/json',
+      },
+      ...(signal ? { signal } : {}),
+    });
+
+    if (res.ok) {
+      const data = (await res.json()) as {
+        web?: {
+          results?: Array<{
+            title?: string;
+            url?: string;
+            description?: string;
+          }>;
+        };
+      };
+
+      return (data.web?.results || [])
+        .filter((r) => r.url)
+        .slice(0, maxResults)
+        .map((r, i) => ({
+          title: r.title || '',
+          url: r.url || '',
+          content: stripHtml(r.description || ''),
+          score: Number((1 - i * 0.05).toFixed(2)),
+        }));
+    }
+
+    // Retry on rate limit (429) or server errors (5xx)
+    if ((res.status === 429 || res.status >= 500) && attempt < MAX_RETRIES) {
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 1000;
+      log.warn(`Brave API rate limited (${res.status}), retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      continue;
+    }
+
     const errorText = await res.text().catch(() => '');
     throw new Error(`Brave API error (${res.status}): ${errorText || res.statusText}`);
   }
 
-  const data = (await res.json()) as {
-    web?: {
-      results?: Array<{
-        title?: string;
-        url?: string;
-        description?: string;
-      }>;
-    };
-  };
-
-  return (data.web?.results || [])
-    .filter((r) => r.url)
-    .slice(0, maxResults)
-    .map((r, i) => ({
-      title: r.title || '',
-      url: r.url || '',
-      content: stripHtml(r.description || ''),
-      score: Number((1 - i * 0.05).toFixed(2)),
-    }));
+  throw new Error('Brave API: max retries exceeded');
 }
 
 /**
@@ -165,19 +183,34 @@ async function searchWithBraveScrape(
   baseUrl?: string,
   signal?: AbortSignal,
 ): Promise<WebSearchSource[]> {
-  const res = await proxyFetch(buildBraveSearchUrl(query, baseUrl), {
-    method: 'GET',
-    headers: BRAVE_HEADERS,
-    ...(signal ? { signal } : {}),
-  });
+  const MAX_RETRIES = 3;
+  const BASE_DELAY_MS = 2000;
 
-  if (!res.ok) {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const res = await proxyFetch(buildBraveSearchUrl(query, baseUrl), {
+      method: 'GET',
+      headers: BRAVE_HEADERS,
+      ...(signal ? { signal } : {}),
+    });
+
+    if (res.ok) {
+      const html = await res.text();
+      return parseBraveSearchHtml(html, maxResults);
+    }
+
+    // Retry on rate limit (429) or server errors (5xx)
+    if ((res.status === 429 || res.status >= 500) && attempt < MAX_RETRIES) {
+      const delay = BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 1000;
+      log.warn(`Brave Search rate limited (${res.status}), retrying in ${Math.round(delay)}ms (attempt ${attempt + 1}/${MAX_RETRIES})`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      continue;
+    }
+
     const errorText = await res.text().catch(() => '');
     throw new Error(`Brave Search error (${res.status}): ${errorText || res.statusText}`);
   }
 
-  const html = await res.text();
-  return parseBraveSearchHtml(html, maxResults);
+  throw new Error('Brave Search: max retries exceeded');
 }
 
 export async function searchWithBrave(params: {

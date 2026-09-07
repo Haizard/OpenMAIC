@@ -1,5 +1,7 @@
 # Simulation Widget Content Generator
 
+**PRIORITY #1: Generate the CANVAS VISUALIZATION first.** The `<canvas>` element with animated drawings of the experiment (apparatus, light rays, circuits, beakers, liquids, pendulums, etc.) is the most important part. Controls and panels are secondary. If you generate controls without a canvas visualization, the simulation is BROKEN.
+
 Generate a self-contained HTML simulation with embedded widget configuration.
 
 ## Quality Patterns Reference
@@ -21,6 +23,8 @@ Generate a self-contained HTML simulation with embedded widget configuration.
 {{snippet:threejs-lab-equipment}}
 
 {{snippet:matterjs-physics}}
+
+{{snippet:experiment-visualizations}}
 
 ## Educational Design Principles (Singapore OER / Mayer's 12 Principles)
 
@@ -264,7 +268,32 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
 
 ## CRITICAL Design Requirements
 
-### 1. Mobile Layout - NO OVERLAP
+### ⚠️ RULE #1: Canvas Visualization Is MANDATORY
+
+**Every simulation MUST have a visible, animated canvas that shows the actual experiment.**
+
+- For **chemistry**: Draw beakers, test tubes, liquids, bubbles, flames, color changes on canvas
+- For **physics**: Draw glass blocks, light rays, circuits, pendulums, lenses, mirrors on canvas
+- For **math**: Draw graphs, geometric shapes, coordinate systems on canvas
+- For **biology**: Draw cells, DNA strands, organisms on canvas
+
+**The canvas visualization is the MAIN EVENT.** Controls, sliders, panels, buttons are SUPPORTING elements.
+
+**FORBIDDEN patterns:**
+- ❌ Generating sliders, buttons, and data panels WITHOUT a canvas
+- ❌ Showing an empty dashboard where the experiment should be
+- ❌ Writing text descriptions instead of drawing the visualization
+- ❌ Using only `<div>` elements for the simulation area
+
+**REQUIRED patterns:**
+- ✅ `<canvas>` element that fills at least 60% of the viewport
+- ✅ `requestAnimationFrame` loop that continuously renders
+- ✅ Actual drawn apparatus (not text labels saying "Glass Block")
+- ✅ Animated elements (moving light rays, bubbling liquids, swinging pendulums)
+
+The {{snippet:experiment-visualizations}} reference above contains ready-to-use Canvas drawing functions for physics and chemistry experiments. **YOU MUST USE THESE DRAWING FUNCTIONS.** When generating a physics or chemistry simulation, copy the relevant `draw*()` function from the reference and adapt it. Do NOT describe the experiment in text. Do NOT create an empty placeholder. DRAW IT.
+
+### 2. Mobile Layout - NO OVERLAP
 - **Control panel MUST NOT overlap with canvas on mobile**
 - Use one of these mobile-safe layouts:
   - **Stacked layout**: Control panel on top, canvas below (with proper spacing)
@@ -289,7 +318,7 @@ Example mobile-safe layout:
 </body>
 ```
 
-### 2. Reset Button - MUST WORK CORRECTLY
+### 3. Reset Button - MUST WORK CORRECTLY
 - **Reset button MUST return simulation to initial state**
 - Common bug: Button changes text to "重新开始" but clicking it doesn't reset
 - Solution: Use a separate reset function, or check state properly
@@ -330,7 +359,7 @@ function updateButton(text) {
 }
 ```
 
-### 3. Button State Management
+### 4. Button State Management
 - Use clear state variables: `running`, `paused`, `ended`
 - Button text should reflect what will happen when clicked:
   - "启动" / "开始" → Start simulation
@@ -339,26 +368,26 @@ function updateButton(text) {
   - "重新开始" / "重试" → Reset and start fresh (when ended)
 - One button should NOT do different things based on text alone
 
-### 4. Touch-Friendly Controls
+### 5. Touch-Friendly Controls
 - Minimum touch target: 44x44px for buttons
 - Sliders: Increase thumb size for mobile (min 24px)
 - Add `touch-action: manipulation` to prevent double-tap zoom
 - Use `touch-action: none` on canvas for custom gesture handling
 
-### 5. Canvas Sizing
+### 6. Canvas Sizing
 - Use `ResizeObserver` or window resize event
 - Canvas should fill available space but respect `max-height`
 - Don't use fixed pixel dimensions
 - Account for control panel height on mobile
 
-### 6. Visual Feedback
+### 7. Visual Feedback
 - Clear indication when simulation starts/pauses/ends
 - Show current state in UI (running indicator, paused icon)
 - Highlight end boundary or target
 - Show success/failure message when simulation ends
 - Animate the "重新开始" button appearance
 
-### 7. Visible Animation (CRITICAL)
+### 8. Visible Animation (CRITICAL)
 
 **When the user clicks "启动" (Start), there MUST be OBVIOUS visual animation.**
 
@@ -399,24 +428,24 @@ function updateButton(text) {
 // User clicks "Start" → Earth visibly spins → Satisfying!
 ```
 
-### 8. Data Display
+### 9. Data Display
 - Real-time values should be clearly visible
 - Use monospace font for numbers
 - Show units consistently
 - Consider a floating info panel that doesn't block the simulation
 
-### 9. Presets
+### 10. Presets
 - Each preset should clearly describe what it demonstrates
 - Preset buttons should be touch-friendly (larger on mobile)
 - Applying a preset should reset the simulation
 
-### 10. Accessibility
+### 11. Accessibility
 - ARIA labels on all controls
 - Keyboard support (Space to start/pause, R to reset)
 - Focus indicators
 - High contrast text on canvas
 
-### 11. Performance
+### 12. Performance
 - Use `requestAnimationFrame` for animations
 - Clear canvas each frame
 - Don't create objects in render loop
