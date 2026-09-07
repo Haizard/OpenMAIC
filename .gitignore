@@ -95,3 +95,7 @@ e2e/__screenshots-619/
 /balancing-chemical-equations-main
 /sciencelab3d-main
 /OpenMAIC-main
+
+
+# PhET simulations (reference only, not part of OpenMAIC source)
+/OpenMAIC-main/phet-sims

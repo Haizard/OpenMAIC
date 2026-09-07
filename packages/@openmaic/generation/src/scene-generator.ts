@@ -5,6 +5,9 @@
  * from scene outlines.
  */
 
+import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { nanoid } from 'nanoid';
 import katex from 'katex';
 import type {
@@ -1193,10 +1196,38 @@ export async function generateWidgetContent(
         equationsText: Array.isArray(widgetOutline.equations) ? widgetOutline.equations.join('\n') : '',
         conclusionQuestions: Array.isArray(widgetOutline.conclusionQuestions) && widgetOutline.conclusionQuestions.length > 0,
         conclusionQuestionsText: Array.isArray(widgetOutline.conclusionQuestions) ? widgetOutline.conclusionQuestions.join('\n') : '',
-        // Reaction knowledge base reference — when the concept matches a known
-        // practical experiment, the prompt can reference verified data for accuracy.
+        // Reaction knowledge base — match concept to known experiments
+        // and pass verified data directly to the prompt for scientific accuracy.
         reactionLibraryHint: hasProcedure ?
-          'When generating this simulation, reference the reaction-library.json file included with this prompt for verified chemical equations, colours, observations, and safety notes. Use the correct apparatus drawing functions for the listed apparatus.' :
+          (() => {
+            try {
+              const libPath = join(dirname(fileURLToPath(import.meta.url)), '../templates/simulation-content/reaction-library.json');
+              const libRaw = readFileSync(libPath, 'utf-8');
+              const lib = JSON.parse(libRaw);
+              const concept = (widgetOutline.concept || '').toLowerCase().replace(/_/g, ' ');
+              // Try to find a matching reaction in the library
+              const matchKey = Object.keys(lib.reactions).find(key => {
+                const rxn = lib.reactions[key];
+                const name = rxn.name.toLowerCase();
+                return concept.includes(name.toLowerCase()) ||
+                  name.includes(concept) ||
+                  key.replace(/_/g, ' ').includes(concept);
+              });
+              if (matchKey) {
+                const rxn = lib.reactions[matchKey];
+                return `VERIFIED REACTION DATA for "${rxn.name}":\n` +
+                  `Equations: ${rxn.equations.join(', ')}\n` +
+                  `Apparatus: ${rxn.apparatus.join(', ')}\n` +
+                  `Chemicals: ${rxn.chemicals.join(', ')}\n` +
+                  `Safety: ${(rxn.safetyNotes || []).join('. ')}\n` +
+                  `Use these verified values. Do NOT invent different equations or observations.`;
+              }
+              // No match found — provide general guidance
+              return 'No verified reaction data found for this concept. Use scientifically accurate equations and observations. Cross-reference standard chemistry references.';
+            } catch {
+              return '';
+            }
+          })() :
           '',
       };
       break;

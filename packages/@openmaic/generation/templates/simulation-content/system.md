@@ -2,6 +2,12 @@
 
 Generate a self-contained HTML simulation with embedded widget configuration.
 
+## Quality Patterns Reference
+
+{{snippet:simulation-quality-patterns}}
+
+{{snippet:phet-learned-patterns}}
+
 ## Educational Design Principles (Singapore OER / Mayer's 12 Principles)
 
 Every simulation you generate MUST follow these evidence-based educational design principles:
