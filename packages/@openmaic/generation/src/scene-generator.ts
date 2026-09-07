@@ -1193,6 +1193,11 @@ export async function generateWidgetContent(
         equationsText: Array.isArray(widgetOutline.equations) ? widgetOutline.equations.join('\n') : '',
         conclusionQuestions: Array.isArray(widgetOutline.conclusionQuestions) && widgetOutline.conclusionQuestions.length > 0,
         conclusionQuestionsText: Array.isArray(widgetOutline.conclusionQuestions) ? widgetOutline.conclusionQuestions.join('\n') : '',
+        // Reaction knowledge base reference — when the concept matches a known
+        // practical experiment, the prompt can reference verified data for accuracy.
+        reactionLibraryHint: hasProcedure ?
+          'When generating this simulation, reference the reaction-library.json file included with this prompt for verified chemical equations, colours, observations, and safety notes. Use the correct apparatus drawing functions for the listed apparatus.' :
+          '',
       };
       break;
     }

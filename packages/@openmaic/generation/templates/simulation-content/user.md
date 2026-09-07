@@ -138,6 +138,35 @@ Generate a complete, interactive HTML simulation with these MANDATORY features:
 3. Keyboard shortcuts (Space = toggle, R = reset)
 4. Touch gestures for mobile
 
+### Live Data Panel
+- Include a semi-transparent live data panel in the top-right corner
+- Show real-time values: time, pH, temperature, or other relevant variables
+- Use monospace font for numbers
+- Update every frame in the animation loop
+
+### Keyboard Shortcuts
+- Space = play/pause
+- R = reset
+- N or → = next step (practical mode)
+- ← = previous step
+- 1-5 = select preset (parameter mode)
+
+### Drag-and-Drop (Practical Mode)
+- Make chemicals and equipment draggable
+- When a chemical is dropped on a vessel, trigger the corresponding reaction animation
+- Visual feedback: highlight the target vessel when dragging over it
+
+### iframe-Optimized Layout
+- Width: 100%, height: fills available space
+- No scrollbars on the main simulation area
+- All controls visible without scrolling
+- Use `overflow: hidden` on body, `overflow: auto` on control panels only
+
+{{#if reactionLibraryHint}}
+### Reaction Accuracy
+{{reactionLibraryHint}}
+
+{{/if}}
 ### Visual Polish
 1. Show current simulation state (running/paused/ended)
 2. Animate transitions

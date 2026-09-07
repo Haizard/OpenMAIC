@@ -265,6 +265,30 @@ Interactive 3D scenes using Three.js for immersive learning experiences.
 | **Molecular structures** | **visualization3d (molecular)** | **3D atoms, bonds, electron clouds** |
 | Solar system/astronomy | visualization3d | Scale and orbit visualization |
 
+## PhET Embed Decision
+
+For standard physics/chemistry experiments, consider embedding a PhET simulation instead of generating from scratch. Use PhET when:
+- The experiment is a well-known standard (balancing equations, acid-base, circuits, pendulum)
+- Visual accuracy matters more than procedural walkthrough
+- PhET has a verified, polished simulation for this exact topic
+
+When embedding PhET, set `widgetType: "simulation"` and add `phetEmbed: true` plus `phetSimName` to the widgetOutline.
+
+Available PhET sims: balancing-chemical-equations, reactants-products-leftovers, molecule-shapes, acid-base-solutions, concentration, forces-and-motion-basics, projectile-motion, wave-interference, circuit-construction-kit, ohms-law, pendulum-lab.
+
+## Reaction Knowledge Base
+
+When generating chemistry practical simulations, reference the `reaction-library.json` file for verified data. This file contains:
+- Correct chemical equations (balanced, with states)
+- Expected observations and inferences
+- Apparatus lists for common experiments
+- Safety notes
+- Flame test colours
+- Gas test results
+- Indicator colour changes
+
+Always use the reaction library data when available — it ensures scientific accuracy.
+
 ## Widget Distribution Guidelines
 
 1. **Opening scenes (slides)**: Introduction, learning objectives, context setting

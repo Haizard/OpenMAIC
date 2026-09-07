@@ -1,0 +1,591 @@
+{
+  "_description": "Verified chemistry reaction data for simulation generation. The LLM should reference this data when generating chemistry practical simulations to ensure scientific accuracy.",
+  "_usage": "When generating a chemistry simulation, look up the relevant reactions in this library. Use the correct equations, colors, observations, apparatus, and safety notes.",
+  
+  "reactions": {
+    "acid_base_titration": {
+      "name": "Acid-Base Titration",
+      "category": "analytical",
+      "difficulty": "intermediate",
+      "apparatus": ["burette", "conical_flask", "pipette", "white_tile", "funnel", "wash_bottle"],
+      "chemicals": ["standard NaOH solution", "dilute HCl", "phenolphthalein indicator"],
+      "procedure": [
+        {
+          "step": 1,
+          "title": "Fill the burette",
+          "description": "Rinse the burette with NaOH solution, then fill it to the 0.00 ml mark. Remove air bubbles from the tip.",
+          "visual": "fill_burette",
+          "reaction": null
+        },
+        {
+          "step": 2,
+          "title": "Measure acid sample",
+          "description": "Use the pipette to transfer exactly 25.0 ml of dilute HCl into the conical flask.",
+          "visual": "pipette_transfer",
+          "reaction": null
+        },
+        {
+          "step": 3,
+          "title": "Add indicator",
+          "description": "Add 2-3 drops of phenolphthalein indicator to the HCl in the flask. The solution remains colourless.",
+          "visual": "add_indicator",
+          "observation": "Solution remains colourless",
+          "inference": "HCl is acidic — phenolphthalein is colourless in acid"
+        },
+        {
+          "step": 4,
+          "title": "Titrate",
+          "description": "Add NaOH from the burette while swirling the flask. Start fast, then slow down near the endpoint.",
+          "visual": "titrate",
+          "reaction": {
+            "equation": "HCl(aq) + NaOH(aq) → NaCl(aq) + H₂O(l)",
+            "type": "neutralization",
+            "colorChange": { "from": "colourless", "to": "pale pink" },
+            "gasProduced": false,
+            "precipitate": false,
+            "temperature": "rises"
+          },
+          "observation": "Solution turns pale pink at the endpoint",
+          "inference": "All HCl has been neutralized by NaOH"
+        },
+        {
+          "step": 5,
+          "title": "Record the reading",
+          "description": "Record the final burette reading. Calculate the volume of NaOH used.",
+          "visual": "record_reading",
+          "observation": "Burette reading gives volume of NaOH used",
+          "inference": "Volume of NaOH allows calculation of unknown HCl concentration"
+        }
+      ],
+      "equations": ["HCl(aq) + NaOH(aq) → NaCl(aq) + H₂O(l)"],
+      "safetyNotes": [
+        "NaOH is corrosive — avoid skin contact",
+        "HCl is corrosive — handle with care",
+        "Wear safety goggles throughout"
+      ],
+      "conclusionQuestions": [
+        "What is the concentration of the HCl?",
+        "Why is phenolphthalein used instead of methyl orange?",
+        "What would happen if you overshoot the endpoint?"
+      ]
+    },
+
+    "preparation_of_oxygen": {
+      "name": "Preparation of Oxygen Gas",
+      "category": "gas_preparation",
+      "difficulty": "beginner",
+      "apparatus": ["test_tube", "delivery_tube", "gas_jar", "trough", "water", "Bunsen_burner", "deflecting_plate"],
+      "chemicals": ["potassium permanganate (KMnO₄)"],
+      "procedure": [
+        {
+          "step": 1,
+          "title": "Set up apparatus",
+          "description": "Set up the delivery tube through the stopper in the test tube. Fill the trough with water and invert the gas jar filled with water over the trough.",
+          "visual": "assembled_apparatus",
+          "reaction": null
+        },
+        {
+          "step": 2,
+          "title": "Heat the KMnO₄",
+          "description": "Gently heat the test tube containing KMnO₄ crystals using a Bunsen burner.",
+          "visual": "heat_substance",
+          "reaction": {
+            "equation": "2KMnO₄(s) → K₂MnO₄(s) + MnO₂(s) + O₂(g)",
+            "type": "thermal_decomposition",
+            "colorChange": { "from": "dark purple crystals", "to": "brown/green residue" },
+            "gasProduced": true,
+            "bubbles": true,
+            "precipitate": false,
+            "temperature": "rises"
+          },
+          "observation": "Dark purple crystals produce a colourless gas. Bubbles seen collecting in the inverted gas jar.",
+          "inference": "Oxygen gas is being produced and collected by downward displacement of water"
+        },
+        {
+          "step": 3,
+          "title": "Test for oxygen",
+          "description": "When the jar is full, cover it with a glass plate and remove from water. Insert a glowing splint into the jar.",
+          "visual": "test_gas",
+          "reaction": null,
+          "test": {
+            "type": "glowing_splint",
+            "result": "The glowing splint relights with a bright flame",
+            "inference": "The gas is oxygen — it supports combustion"
+          }
+        }
+      ],
+      "equations": ["2KMnO₄(s) → K₂MnO₄(s) + MnO₂(s) + O₂(g)"],
+      "safetyNotes": [
+        "KMnO₄ stains skin and clothes — wear gloves",
+        "Hot test tube — use tongs",
+        "Bunsen burner flame — tie back hair, roll up sleeves"
+      ],
+      "conclusionQuestions": [
+        "Why is oxygen collected by downward displacement of water?",
+        "What is the residue left in the test tube?",
+        "Write the word equation for the reaction."
+      ]
+    },
+
+    "preparation_of_hydrogen": {
+      "name": "Preparation of Hydrogen Gas",
+      "category": "gas_preparation",
+      "difficulty": "beginner",
+      "apparatus": ["test_tube", "delivery_tube", "gas_jar", "trough", "water", "Bunsen_burner"],
+      "chemicals": ["zinc granules", "dilute hydrochloric acid"],
+      "procedure": [
+        {
+          "step": 1,
+          "title": "Set up apparatus",
+          "description": "Place zinc granules in the test tube. Set up the delivery tube through the stopper into the trough of water with an inverted gas jar.",
+          "visual": "assembled_apparatus",
+          "reaction": null
+        },
+        {
+          "step": 2,
+          "title": "Add dilute HCl",
+          "description": "Pour dilute hydrochloric acid through the thistle funnel onto the zinc granules.",
+          "visual": "pour_liquid",
+          "reaction": {
+            "equation": "Zn(s) + 2HCl(aq) → ZnCl₂(aq) + H₂(g)",
+            "type": "displacement",
+            "colorChange": null,
+            "gasProduced": true,
+            "bubbles": true,
+            "precipitate": false,
+            "temperature": "rises slightly"
+          },
+          "observation": "Effervescence observed. Colourless gas collected in the inverted jar by downward displacement of water.",
+          "inference": "Zinc displaces hydrogen from the acid. Hydrogen is insoluble in water."
+        },
+        {
+          "step": 3,
+          "title": "Test for hydrogen",
+          "description": "Bring a burning splint near the mouth of the gas jar.",
+          "visual": "test_gas",
+          "reaction": null,
+          "test": {
+            "type": "burning_splint",
+            "result": "A 'pop' sound is heard",
+            "inference": "The gas is hydrogen — it burns explosively with a 'pop' sound"
+          }
+        }
+      ],
+      "equations": ["Zn(s) + 2HCl(aq) → ZnCl₂(aq) + H₂(g)"],
+      "safetyNotes": [
+        "Hydrogen is flammable — keep away from naked flames",
+        "Dilute HCl is corrosive — handle with care",
+        "The 'pop' test is loud — warn students before testing"
+      ],
+      "conclusionQuestions": [
+        "Why is hydrogen collected by downward displacement of water?",
+        "What type of reaction is this?",
+        "Write the word equation."
+      ]
+    },
+
+    "preparation_of_co2": {
+      "name": "Preparation of Carbon Dioxide Gas",
+      "category": "gas_preparation",
+      "difficulty": "beginner",
+      "apparatus": ["conical_flask", "thistle_funnel", "delivery_tube", "gas_jar", "trough"],
+      "chemicals": ["marble chips (CaCO₃)", "dilute hydrochloric acid"],
+      "procedure": [
+        {
+          "step": 1,
+          "title": "Set up apparatus",
+          "description": "Place marble chips in the conical flask. Set up the thistle funnel and delivery tube.",
+          "visual": "assembled_apparatus",
+          "reaction": null
+        },
+        {
+          "step": 2,
+          "title": "Add acid",
+          "description": "Pour dilute HCl through the thistle funnel onto the marble chips.",
+          "visual": "pour_liquid",
+          "reaction": {
+            "equation": "CaCO₃(s) + 2HCl(aq) → CaCl₂(aq) + H₂O(l) + CO₂(g)",
+            "type": "acid_carbonate",
+            "colorChange": null,
+            "gasProduced": true,
+            "bubbles": true,
+            "precipitate": false,
+            "temperature": "rises slightly"
+          },
+          "observation": "Effervescence. Colourless gas collected by upward displacement of air.",
+          "inference": "Carbon dioxide is produced. It is denser than air and slightly soluble in water."
+        },
+        {
+          "step": 3,
+          "title": "Test for CO₂",
+          "description": "Bubble the gas through limewater in a test tube.",
+          "visual": "test_gas",
+          "reaction": null,
+          "test": {
+            "type": "limewater",
+            "result": "Limewater turns milky/cloudy",
+            "inference": "The gas is carbon dioxide — it forms insoluble CaCO₃ with limewater"
+          }
+        }
+      ],
+      "equations": ["CaCO₃(s) + 2HCl(aq) → CaCl₂(aq) + H₂O(l) + CO₂(g)"],
+      "safetyNotes": [
+        "Dilute HCl is corrosive",
+        "CO₂ in high concentrations can cause suffocation — work in ventilated area"
+      ],
+      "conclusionQuestions": [
+        "Why is CO₂ collected by upward displacement of air?",
+        "Write the equation for the limewater test.",
+        "What happens when excess CO₂ is bubbled through limewater?"
+      ]
+    },
+
+    "separation_filtration": {
+      "name": "Filtration — Separation of Insoluble Solid from Liquid",
+      "category": "separation",
+      "difficulty": "beginner",
+      "apparatus": ["funnel", "filter_paper", "conical_flask", "beaker", "glass_rod"],
+      "chemicals": ["sand and water mixture"],
+      "procedure": [
+        {
+          "step": 1,
+          "title": "Prepare filter paper",
+          "description": "Fold filter paper into a cone shape. Place it in the funnel.",
+          "visual": "fold_filter_paper",
+          "reaction": null
+        },
+        {
+          "step": 2,
+          "title": "Pour the mixture",
+          "description": "Pour the sand-water mixture through the filter paper using a glass rod to guide the flow.",
+          "visual": "pour_through_filter",
+          "reaction": null,
+          "observation": "Clear water passes through the filter paper. Sand is trapped on the paper.",
+          "inference": "Insoluble solids cannot pass through the microscopic pores of filter paper"
+        },
+        {
+          "step": 3,
+          "title": "Collect filtrate",
+          "description": "The clear liquid (filtrate) collects in the conical flask below.",
+          "visual": "collect_filtrate",
+          "observation": "Filtrate is clear and colourless",
+          "inference": "Filtration successfully separates insoluble solid from liquid"
+        }
+      ],
+      "safetyNotes": ["Handle glassware carefully — broken glass is sharp"],
+      "conclusionQuestions": [
+        "Why do we use a glass rod when pouring?",
+        "What would happen if the filter paper had a hole?",
+        "Give an example of filtration in daily life."
+      ]
+    },
+
+    "separation_distillation": {
+      "name": "Simple Distillation — Separation of Soluble Solid from Liquid",
+      "category": "separation",
+      "difficulty": "intermediate",
+      "apparatus": ["round_bottom_flask", "condenser", "thermometer", "Bunsen_burner", "beaker", "anti_bumping_granules"],
+      "chemicals": ["salt water solution"],
+      "procedure": [
+        {
+          "step": 1,
+          "title": "Set up apparatus",
+          "description": "Set up the round-bottom flask on a tripod with gauze. Connect the condenser. Place thermometer in position.",
+          "visual": "distillation_setup",
+          "reaction": null
+        },
+        {
+          "step": 2,
+          "title": "Heat the solution",
+          "description": "Add anti-bumping granules and heat the salt water solution gently.",
+          "visual": "heat_liquid",
+          "reaction": {
+            "type": "physical_change",
+            "temperature": "rises to 100°C",
+            "gasProduced": false,
+            "bubbles": true,
+            "precipitate": false
+          },
+          "observation": "Water boils at 100°C. Steam rises and condenses in the condenser.",
+          "inference": "Water evaporates, leaving salt behind. Steam condenses back to pure water."
+        },
+        {
+          "step": 3,
+          "title": "Collect distillate",
+          "description": "Collect the pure water (distillate) in the beaker.",
+          "visual": "collect_distillate",
+          "observation": "Clear, colourless liquid collects. White solid residue left in the flask.",
+          "inference": "Distillation separates a soluble solid from water. The distillate is pure water."
+        }
+      ],
+      "safetyNotes": [
+        "Hot apparatus — use tongs",
+        "Anti-bumping granules prevent violent boiling"
+      ],
+      "conclusionQuestions": [
+        "Why is the thermometer bulb placed at the side arm of the flask?",
+        "What is the residue left in the flask?",
+        "How could you test the distillate is pure water?"
+      ]
+    },
+
+    "flame_tests": {
+      "name": "Flame Tests for Metal Ions",
+      "category": "qualitative_analysis",
+      "difficulty": "beginner",
+      "apparatus": ["Bunsen_burner", "platinum_wire", "washing_bottle", "test_tubes"],
+      "chemicals": ["dilute HCl", "sodium chloride solution", "potassium chloride solution", "calcium chloride solution", "copper(II) sulphate solution"],
+      "procedure": [
+        {
+          "step": 1,
+          "title": "Clean the wire",
+          "description": "Dip the platinum wire in dilute HCl and hold it in the blue Bunsen flame until no colour change.",
+          "visual": "clean_wire",
+          "reaction": null,
+          "observation": "Wire glows but no colour change in the flame",
+          "inference": "Wire is clean — HCl removes impurities"
+        },
+        {
+          "step": 2,
+          "title": "Test sodium",
+          "description": "Dip the wire in NaCl solution, then hold it in the flame.",
+          "visual": "flame_test",
+          "observation": "Flame turns intense yellow/orange",
+          "inference": "Yellow flame = Sodium ions (Na⁺)"
+        },
+        {
+          "step": 3,
+          "title": "Test potassium",
+          "description": "Clean the wire, dip in KCl solution, hold in the flame. View through blue cobalt glass.",
+          "visual": "flame_test_blue_glass",
+          "observation": "Flame turns lilac/pale purple",
+          "inference": "Lilac flame = Potassium ions (K⁺). Blue glass filters out yellow sodium light."
+        },
+        {
+          "step": 4,
+          "title": "Test calcium",
+          "description": "Clean the wire, dip in CaCl₂ solution, hold in the flame.",
+          "visual": "flame_test",
+          "observation": "Flame turns brick red/orange-red",
+          "inference": "Brick red flame = Calcium ions (Ca²⁺)"
+        },
+        {
+          "step": 5,
+          "title": "Test copper",
+          "description": "Clean the wire, dip in CuSO₄ solution, hold in the flame.",
+          "visual": "flame_test",
+          "observation": "Flame turns green/blue-green",
+          "inference": "Green flame = Copper(II) ions (Cu²⁺)"
+        }
+      ],
+      "safetyNotes": [
+        "Platinum wire gets very hot — use tongs",
+        "Bunsen burner flame — tie back hair",
+        "HCl is corrosive"
+      ],
+      "conclusionQuestions": [
+        "Why must the wire be cleaned with HCl before each test?",
+        "Why is blue cobalt glass used for the potassium test?",
+        "How could you identify an unknown salt using flame tests?"
+      ]
+    },
+
+    "acid_reactions": {
+      "name": "Reactions of Acids",
+      "category": "chemical_reactions",
+      "difficulty": "beginner",
+      "apparatus": ["test_tubes", "test_tube_rack", "delivery_tube", "limewater"],
+      "chemicals": ["dilute HCl", "dilute H₂SO₄", "magnesium ribbon", "zinc granules", "copper(II) oxide", "sodium hydroxide", "sodium carbonate"],
+      "procedure": [
+        {
+          "step": 1,
+          "title": "Acid + Metal",
+          "description": "Add dilute HCl to magnesium ribbon in a test tube.",
+          "visual": "add_acid_to_metal",
+          "reaction": {
+            "equation": "Mg(s) + 2HCl(aq) → MgCl₂(aq) + H₂(g)",
+            "type": "displacement",
+            "gasProduced": true,
+            "bubbles": true,
+            "colorChange": null,
+            "temperature": "rises"
+          },
+          "observation": "Effervescence. Colourless gas collected. Test tube becomes hot.",
+          "inference": "Magnesium displaces hydrogen from the acid. Reaction is exothermic."
+        },
+        {
+          "step": 2,
+          "title": "Acid + Metal Oxide",
+          "description": "Add dilute HCl to black copper(II) oxide powder.",
+          "visual": "add_acid_to_oxide",
+          "reaction": {
+            "equation": "CuO(s) + 2HCl(aq) → CuCl₂(aq) + H₂O(l)",
+            "type": "neutralization",
+            "gasProduced": false,
+            "bubbles": false,
+            "colorChange": { "from": "black solid", "to": "blue/green solution" },
+            "precipitate": false
+          },
+          "observation": "Black powder dissolves. Blue/green solution forms.",
+          "inference": "CuO is a basic oxide — it reacts with acid to form salt and water (neutralization)."
+        },
+        {
+          "step": 3,
+          "title": "Acid + Carbonate",
+          "description": "Add dilute HCl to sodium carbonate powder.",
+          "visual": "add_acid_to_carbonate",
+          "reaction": {
+            "equation": "Na₂CO₃(s) + 2HCl(aq) → 2NaCl(aq) + H₂O(l) + CO₂(g)",
+            "type": "acid_carbonate",
+            "gasProduced": true,
+            "bubbles": true,
+            "colorChange": null,
+            "precipitate": false
+          },
+          "observation": "Effervescence. Gas turns limewater milky.",
+          "inference": "Carbonates react with acid to produce carbon dioxide gas."
+        }
+      ],
+      "safetyNotes": [
+        "Acids are corrosive — wear goggles and gloves",
+        "Hydrogen is flammable",
+        "CO₂ in large amounts can cause drowsiness"
+      ],
+      "conclusionQuestions": [
+        "What do all acid + metal reactions produce?",
+        "How do you know the gas from step 3 is CO₂?",
+        "Write the general word equation: Acid + Metal Oxide → ?"
+      ]
+    },
+
+    "displacement_reactions": {
+      "name": "Displacement Reactions with Metals",
+      "category": "chemical_reactions",
+      "difficulty": "beginner",
+      "apparatus": ["test_tubes", "test_tube_rack", "spatula"],
+      "chemicals": ["zinc sulphate solution", "iron filings", "copper sulphate solution", "iron nail", "magnesium ribbon"],
+      "procedure": [
+        {
+          "step": 1,
+          "title": "Iron in copper sulphate",
+          "description": "Place an iron nail in copper(II) sulphate solution.",
+          "visual": "displacement_test",
+          "reaction": {
+            "equation": "Fe(s) + CuSO₄(aq) → FeSO₄(aq) + Cu(s)",
+            "type": "displacement",
+            "colorChange": { "from": "blue solution", "to": "green solution" },
+            "gasProduced": false,
+            "bubbles": false,
+            "precipitate": true,
+            "precipitateColor": "brown/reddish solid on nail"
+          },
+          "observation": "Brown/reddish copper deposits on the iron nail. Blue solution turns green.",
+          "inference": "Iron is more reactive than copper — it displaces copper from its salt solution."
+        },
+        {
+          "step": 2,
+          "title": "Copper in zinc sulphate",
+          "description": "Place a copper strip in zinc sulphate solution.",
+          "visual": "displacement_test",
+          "reaction": {
+            "equation": "No reaction",
+            "type": "no_reaction",
+            "colorChange": null,
+            "gasProduced": false,
+            "bubbles": false
+          },
+          "observation": "No visible change.",
+          "inference": "Copper is less reactive than zinc — it cannot displace zinc."
+        }
+      ],
+      "safetyNotes": [
+        "Copper sulphate is harmful — avoid skin contact",
+        "Wash hands after handling metal solutions"
+      ],
+      "conclusionQuestions": [
+        "Which metal is more reactive: iron or copper?",
+        "Write the word equation for step 1.",
+        "Predict what would happen if you placed zinc in copper sulphate solution."
+      ]
+    },
+
+    "rate_of_reaction": {
+      "name": "Factors Affecting Rate of Reaction",
+      "category": "kinetics",
+      "difficulty": "intermediate",
+      "apparatus": ["conical_flask", "delivery_tube", "gas_syringe", "stopwatch", "thermometer", "water_bath"],
+      "chemicals": ["marble chips (CaCO₃)", "dilute HCl (various concentrations)", "hydrogen peroxide", "MnO₂ catalyst"],
+      "procedure": [
+        {
+          "step": 1,
+          "title": "Effect of concentration",
+          "description": "React 5g marble chips with 50ml of HCl at different concentrations (0.5M, 1.0M, 2.0M). Measure volume of CO₂ collected in 30 seconds.",
+          "visual": "gas_collection",
+          "reaction": {
+            "equation": "CaCO₃(s) + 2HCl(aq) → CaCl₂(aq) + H₂O(l) + CO₂(g)",
+            "type": "acid_carbonate",
+            "gasProduced": true,
+            "bubbles": true
+          },
+          "observation": "Higher concentration → faster effervescence → more gas collected in 30s",
+          "inference": "Higher concentration increases frequency of collisions between reactant particles"
+        },
+        {
+          "step": 2,
+          "title": "Effect of surface area",
+          "description": "Compare reaction rate using marble chips vs marble powder with the same concentration of HCl.",
+          "visual": "compare_rates",
+          "observation": "Marble powder reacts faster than marble chips",
+          "inference": "Greater surface area increases frequency of collisions"
+        },
+        {
+          "step": 3,
+          "title": "Effect of temperature",
+          "description": "React at room temperature vs 40°C vs 60°C using a water bath.",
+          "visual": "water_bath",
+          "observation": "Higher temperature → faster reaction",
+          "inference": "Higher temperature increases kinetic energy and frequency of successful collisions"
+        }
+      ],
+      "safetyNotes": [
+        "HCl is corrosive",
+        "Hot water bath — use tongs",
+        "MnO₂ is an irritant — avoid inhaling dust"
+      ],
+      "conclusionQuestions": [
+        "Draw a graph of volume of gas vs time for different concentrations.",
+        "Explain in terms of collision theory why higher temperature increases rate.",
+        "What is the role of MnO₂ in hydrogen peroxide decomposition?"
+      ]
+    }
+  },
+
+  "flameTestColors": {
+    "sodium": { "color": "#FFD700", "label": "Intense Yellow/Orange" },
+    "potassium": { "color": "#DDA0DD", "label": "Lilac/Pale Purple" },
+    "calcium": { "color": "#FF6347", "label": "Brick Red" },
+    "copper": { "color": "#00FF7F", "label": "Green/Blue-Green" },
+    "barium": { "color": "#90EE90", "label": "Pale Green" },
+    "lithium": { "color": "#FF1493", "label": "Crimson Red" }
+  },
+
+  "gasTests": {
+    "oxygen": { "method": "Glowing splint", "result": "Relights" },
+    "hydrogen": { "method": "Burning splint", "result": "Pop sound" },
+    "carbon_dioxide": { "method": "Limewater", "result": "Turns milky" },
+    "ammonia": { "method": "Moist red litmus paper", "result": "Turns blue" },
+    "chlorine": { "method": "Moist starch-iodide paper", "result": "Turns blue-black" }
+  },
+
+  "indicatorColors": {
+    "litmus_acid": "Red",
+    "litmus_alkali": "Blue",
+    "methyl_orange_acid": "Red",
+    "methyl_orange_alkali": "Yellow",
+    "phenolphthalein_acid": "Colourless",
+    "phenolphthalein_alkali": "Pink/Red",
+    "universal_pH1": "#FF0000",
+    "universal_pH7": "#00FF00",
+    "universal_pH14": "#8000FF"
+  }
+}

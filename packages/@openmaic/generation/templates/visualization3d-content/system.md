@@ -653,6 +653,195 @@ window.addEventListener('message', (event) => {
 });
 ```
 
+## Chemistry & Molecular Visualization Mode
+
+When the concept involves chemistry, molecules, atoms, or chemical reactions, generate a **molecular visualization** using Three.js with these specific patterns:
+
+### Molecular Structure Rendering
+
+```javascript
+// Atom colors (CPK convention)
+const ATOM_COLORS = {
+  H: 0xFFFFFF, C: 0x909090, N: 0x3050F8, O: 0xFF0D0D,
+  S: 0xFFFF30, P: 0xFF8000, Cl: 0x1FF01F, Na: 0xAB5CF2,
+  Fe: 0xE06633, Cu: 0xC88033, Zn: 0x7D80B0, Ca: 0x3DFF00,
+  K: 0x8F40D4, Mg: 0x8AFF00, Ba: 0x00C900
+};
+
+// Create a sphere atom
+function createAtom(type, position, radius = 0.3) {
+  const geometry = new THREE.SphereGeometry(radius, 32, 32);
+  const material = new THREE.MeshPhongMaterial({
+    color: ATOM_COLORS[type] || 0xFF00FF,
+    shininess: 80,
+    specular: 0x444444
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(...position);
+  mesh.userData = { type, element: type };
+  return mesh;
+}
+
+// Create a bond (cylinder between two atoms)
+function createBond(start, end, order = 1, radius = 0.06) {
+  const direction = new THREE.Vector3().subVectors(end, start);
+  const length = direction.length();
+  const center = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+  
+  const geometry = new THREE.CylinderGeometry(radius, radius, length, 8);
+  const material = new THREE.MeshPhongMaterial({ color: 0xCCCCCC, shininess: 40 });
+  const mesh = new THREE.Mesh(geometry, material);
+  
+  mesh.position.copy(center);
+  mesh.quaternion.setFromUnitVectors(
+    new THREE.Vector3(0, 1, 0),
+    direction.normalize()
+  );
+  
+  return mesh;
+}
+
+// Example: Water molecule (H₂O)
+function createWaterMolecule(position = [0, 0, 0]) {
+  const group = new THREE.Group();
+  group.position.set(...position);
+  
+  // Oxygen (center)
+  const o = createAtom('O', [0, 0, 0], 0.35);
+  group.add(o);
+  
+  // Hydrogen atoms (bond angle ~104.5°)
+  const bondLength = 0.8;
+  const angle = 104.5 * Math.PI / 180;
+  const h1 = createAtom('H', [
+    bondLength * Math.sin(angle / 2),
+    bondLength * Math.cos(angle / 2), 0
+  ], 0.25);
+  const h2 = createAtom('H', [
+    -bondLength * Math.sin(angle / 2),
+    bondLength * Math.cos(angle / 2), 0
+  ], 0.25);
+  group.add(h1, h2);
+  
+  // Bonds
+  group.add(createBond(o.position, h1.position));
+  group.add(createBond(o.position, h2.position));
+  
+  return group;
+}
+```
+
+### Molecule Rotation Animation
+
+```javascript
+// Slowly rotate molecules for 3D inspection
+function animate() {
+  requestAnimationFrame(animate);
+  moleculeGroup.rotation.y += 0.005;  // Slow rotation
+  controls.update();  // OrbitControls
+  renderer.render(scene, camera);
+}
+```
+
+### Electron Orbital Visualization
+
+```javascript
+// Create electron cloud / orbital
+function createOrbital(type, position, color = 0x4488FF) {
+  let geometry;
+  switch(type) {
+    case 's': geometry = new THREE.SphereGeometry(0.5, 32, 32); break;
+    case 'p': geometry = new THREE.TorusGeometry(0.3, 0.15, 16, 32); break;
+    case 'sp3': // Tetrahedral arrangement
+      // Create 4 lobes arranged tetrahedrally
+      break;
+  }
+  const material = new THREE.MeshPhongMaterial({
+    color, transparent: true, opacity: 0.4, side: THREE.DoubleSide
+  });
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.position.set(...position);
+  return mesh;
+}
+```
+
+### Chemical Reaction Animation
+
+```javascript
+// Animate two molecules approaching and reacting
+function animateReaction(moleculeA, moleculeB, product, duration = 3000) {
+  const startTime = Date.now();
+  
+  function update() {
+    const elapsed = Date.now() - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    
+    if (progress < 0.5) {
+      // Phase 1: Molecules approach each other
+      const t = progress * 2;
+      moleculeA.position.lerp(new THREE.Vector3(-0.5, 0, 0), t);
+      moleculeB.position.lerp(new THREE.Vector3(0.5, 0, 0), t);
+    } else {
+      // Phase 2: Fade out reactants, fade in product
+      const t = (progress - 0.2) * 2;
+      moleculeA.material.opacity = 1 - t;
+      moleculeB.material.opacity = 1 - t;
+      product.material.opacity = t;
+      product.scale.setScalar(t);
+    }
+    
+    if (progress < 1) requestAnimationFrame(update);
+  }
+  update();
+}
+```
+
+### Lab Equipment in 3D
+
+For chemistry lab scenes, create 3D lab equipment:
+
+```javascript
+// 3D Beaker with liquid
+function createBeaker(position, liquidLevel = 0.5, liquidColor = 0x0066FF) {
+  const group = new THREE.Group();
+  group.position.set(...position);
+  
+  // Glass body (transparent cylinder)
+  const glassGeom = new THREE.CylinderGeometry(0.4, 0.4, 0.8, 32);
+  const glassMat = new THREE.MeshPhongMaterial({
+    color: 0xFFFFFF, transparent: true, opacity: 0.2,
+    side: THREE.DoubleSide, shininess: 100
+  });
+  group.add(new THREE.Mesh(glassGeom, glassMat));
+  
+  // Liquid fill
+  const liquidGeom = new THREE.CylinderGeometry(0.38, 0.38, 0.8 * liquidLevel, 32);
+  const liquidMat = new THREE.MeshPhongMaterial({
+    color: liquidColor, transparent: true, opacity: 0.6
+  });
+  const liquid = new THREE.Mesh(liquidGeom, liquidMat);
+  liquid.position.y = -0.4 + (0.8 * liquidLevel) / 2;
+  group.add(liquid);
+  
+  return group;
+}
+```
+
+### pH Color Mapping for 3D
+
+```javascript
+// Map pH to color for solution visualization
+function getPHColor(pH) {
+  if (pH < 3) return 0xFF0000;      // Strong acid - red
+  if (pH < 5) return 0xFF8800;      // Weak acid - orange
+  if (pH < 6) return 0xFFFF00;      // Slightly acid - yellow
+  if (pH < 8) return 0x00FF00;      // Neutral - green
+  if (pH < 10) return 0x00FFFF;     // Slightly alkali - cyan
+  if (pH < 12) return 0x0000FF;     // Weak alkali - blue
+  return 0x8000FF;                   // Strong alkali - purple
+}
+```
+
 ## Output Format
 
 Return ONLY the HTML document, no markdown fences or explanations.

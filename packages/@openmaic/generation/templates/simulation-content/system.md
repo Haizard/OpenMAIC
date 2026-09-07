@@ -2,6 +2,30 @@
 
 Generate a self-contained HTML simulation with embedded widget configuration.
 
+## Educational Design Principles (Singapore OER / Mayer's 12 Principles)
+
+Every simulation you generate MUST follow these evidence-based educational design principles:
+
+1. **Coherence** — Remove extraneous material. No decorative images, no irrelevant animations, no filler text.
+2. **Signaling** — Use visual cues (highlights, arrows, color coding) to direct attention to key elements. Label all apparatus and variables clearly.
+3. **Redundancy** — Do NOT duplicate the same information in both text and audio. Use visual + text together, not text + text.
+4. **Spatial Contiguity** — Place labels ON or RIGHT NEXT TO the objects they describe. Never use a separate legend when you can label directly.
+5. **Temporal Contiguity** — Present narration and corresponding visuals simultaneously, not sequentially.
+6. **Segmenting** — Break complex procedures into discrete steps with clear transitions. Use the step panel for practicals.
+7. **Pre-Training** — Show a brief overview of apparatus and materials BEFORE the procedure begins.
+8. **Modality** — Use visual diagrams + text labels (not text walls). Let the Canvas do the teaching.
+9. **Multimedia** — Use words AND pictures together. Never use text-only explanations for visual phenomena.
+10. **Personalization** — Use conversational language ("Now we add...") rather than formal textbook style.
+11. **Voice** — Use a friendly, encouraging tone. Students should feel guided, not lectured.
+12. **Eye Contiguity** — Use a visible pointer/cursor/highlight to guide the student's eye during animations.
+
+### Cognitive Load Management
+- **Intrinsic load**: Keep the number of simultaneous variables ≤ 5. Show one concept at a time.
+- **Extraneous load**: Minimize UI chrome. Maximize canvas/visualization area.
+- **Germane load**: Use worked examples, scaffolding, and step-by-step progression.
+- **Split attention**: Merge information sources. Put the equation ON the apparatus, not in a separate panel.
+- **Element interactivity**: Introduce components one by one, then combine them.
+
 ## Output Structure
 
 Your output must be a complete HTML document with:
@@ -12,6 +36,10 @@ Your output must be a complete HTML document with:
 4. **Canvas or SVG visualization**
 5. **Mobile-responsive design**
 6. **postMessage listener** for widget actions (REQUIRED)
+7. **Live variable display panel** (top-right corner, showing real-time values)
+8. **Keyboard shortcuts** (Space=play/pause, R=reset, N=next step, ←→=previous/next)
+9. **Drag-and-drop support** for lab equipment and chemicals (when applicable)
+10. **iframe-optimized layout** (100% width, no scrollbars, fills available height)
 
 ## Widget Config Schema
 
@@ -106,6 +134,113 @@ To make highlight/annotation work, use consistent IDs for controls:
 - Sliders: `id="{variable_name}-slider"` (e.g., `id="angle-slider"`, `id="velocity-slider"`)
 - Buttons: `id="{action}-btn"` (e.g., `id="start-btn"`, `id="reset-btn"`)
 - Displays: `id="{variable_name}-display"` (e.g., `id="acceleration-display"`)
+
+## Live Variable Display Panel (Singapore OER Pattern)
+
+Every simulation MUST include a semi-transparent live data panel in the top-right corner showing real-time values. This is critical for student understanding.
+
+```html
+<div id="live-data-panel" style="position:fixed; top:12px; right:12px; background:rgba(15,23,42,0.85); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.1); border-radius:10px; padding:12px 16px; font-family:'JetBrains Mono',monospace; font-size:13px; z-index:100; min-width:160px;">
+  <div style="color:#94A3B8; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin-bottom:6px;">Live Data</div>
+  <div class="data-row" style="display:flex; justify-content:space-between; gap:12px; margin:4px 0;">
+    <span style="color:#94A3B8;">Time:</span>
+    <span id="data-time" style="color:#60A5FA; font-weight:600;">0.00 s</span>
+  </div>
+  <div class="data-row" style="display:flex; justify-content:space-between; gap:12px; margin:4px 0;">
+    <span style="color:#94A3B8;">pH:</span>
+    <span id="data-ph" style="color:#34D399; font-weight:600;">7.0</span>
+  </div>
+  <div class="data-row" style="display:flex; justify-content:space-between; gap:12px; margin:4px 0;">
+    <span style="color:#94A3B8;">Temp:</span>
+    <span id="data-temp" style="color:#F59E0B; font-weight:600;">25.0 °C</span>
+  </div>
+</div>
+```
+
+Update this panel in your animation loop:
+```javascript
+function updateLiveDataPanel(data) {
+  const timeEl = document.getElementById('data-time');
+  const phEl = document.getElementById('data-ph');
+  const tempEl = document.getElementById('data-temp');
+  if (timeEl) timeEl.textContent = data.time.toFixed(2) + ' s';
+  if (phEl) phEl.textContent = data.pH.toFixed(1);
+  if (tempEl) tempEl.textContent = data.temperature.toFixed(1) + ' °C';
+}
+```
+
+## Keyboard Shortcuts
+
+All simulations MUST support these keyboard shortcuts:
+
+```javascript
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+  switch(e.key) {
+    case ' ': e.preventDefault(); handleMainButton(); break;  // Space = play/pause
+    case 'r': case 'R': resetSimulation(); break;            // R = reset
+    case 'n': case 'N': case 'ArrowRight': nextStep(); break; // N or → = next step
+    case 'ArrowLeft': prevStep(); break;                      // ← = previous step
+    case '1': case '2': case '3': case '4': case '5':
+      selectPreset(parseInt(e.key) - 1); break;             // 1-5 = select preset
+  }
+});
+```
+
+## Drag-and-Drop for Lab Equipment
+
+When generating chemistry/physics practical simulations, support dragging chemicals and equipment:
+
+```javascript
+// Draggable lab items
+document.querySelectorAll('.draggable-item').forEach(item => {
+  let isDragging = false, offsetX, offsetY;
+  
+  item.addEventListener('mousedown', (e) => {
+    isDragging = true;
+    const rect = item.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    item.style.cursor = 'grabbing';
+    item.style.zIndex = '1000';
+  });
+  
+  document.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    item.style.position = 'fixed';
+    item.style.left = (e.clientX - offsetX) + 'px';
+    item.style.top = (e.clientY - offsetY) + 'px';
+  });
+  
+  document.addEventListener('mouseup', (e) => {
+    if (!isDragging) return;
+    isDragging = false;
+    item.style.cursor = 'grab';
+    item.style.zIndex = '';
+    // Check if dropped on a target vessel
+    const target = document.elementFromPoint(e.clientX, e.clientY);
+    if (target && target.classList.contains('drop-target')) {
+      handleDrop(item.dataset.chemical, target.dataset.vessel);
+    }
+  });
+});
+```
+
+## iframe-Optimized Layout
+
+Simulations must fit cleanly in an iframe:
+- Width: 100%
+- Height: fills available space (use `100vh` or `calc(100vh - 40px)` for header)
+- No scrollbars on the main simulation area
+- All controls visible without scrolling
+- Use `overflow: hidden` on body, `overflow: auto` on control panels only
+
+```css
+html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
+#simulation-container { width: 100%; height: 100vh; display: flex; flex-direction: column; }
+#canvas-area { flex: 1; min-height: 0; position: relative; }
+#controls-area { flex-shrink: 0; overflow-y: auto; max-height: 35vh; }
+```
 
 ## CRITICAL Design Requirements
 
@@ -686,6 +821,290 @@ function drawSplint(ctx, x, y, scale, { lit = false, glowing = false } = {}) {
 }
 ```
 
+### Enhanced Apparatus with 3D Appearance
+
+Add depth and realism to lab equipment using gradients and shadows:
+
+```javascript
+// Enhanced beaker with 3D glass effect
+function drawBeaker3D(ctx, x, y, scale, { fillLevel = 0, fillColor = 'rgba(0,120,255,0.3)', label = '' } = {}) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  const w = 80, h = 100;
+  
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  ctx.fillRect(-w/2 + 4, h/2 + 2, w, 6);
+  
+  // Glass body with gradient (3D effect)
+  const glassGrad = ctx.createLinearGradient(-w/2, 0, w/2, 0);
+  glassGrad.addColorStop(0, 'rgba(200,230,255,0.4)');
+  glassGrad.addColorStop(0.3, 'rgba(220,240,255,0.15)');
+  glassGrad.addColorStop(0.7, 'rgba(220,240,255,0.15)');
+  glassGrad.addColorStop(1, 'rgba(200,230,255,0.4)');
+  ctx.fillStyle = glassGrad;
+  ctx.fillRect(-w/2, -h/2, w, h);
+  
+  // Liquid with meniscus (curved top surface)
+  if (fillLevel > 0) {
+    const liquidTop = h/2 - h * fillLevel;
+    const liquidGrad = ctx.createLinearGradient(0, liquidTop, 0, h/2);
+    liquidGrad.addColorStop(0, fillColor);
+    liquidGrad.addColorStop(1, fillColor.replace('0.3', '0.5'));
+    ctx.fillStyle = liquidGrad;
+    ctx.beginPath();
+    ctx.moveTo(-w/2 + 2, liquidTop + 3); // meniscus curve
+    ctx.quadraticCurveTo(0, liquidTop - 2, w/2 - 2, liquidTop + 3);
+    ctx.lineTo(w/2 - 2, h/2);
+    ctx.lineTo(-w/2 + 2, h/2);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Liquid surface highlight
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-w/2 + 5, liquidTop + 3);
+    ctx.quadraticCurveTo(0, liquidTop - 1, w/2 - 5, liquidTop + 3);
+    ctx.stroke();
+  }
+  
+  // Glass outline with highlight
+  ctx.strokeStyle = 'rgba(180,220,255,0.9)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(-w/2, -h/2, w, h);
+  
+  // Glass reflection
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(-w/2 + 3, -h/2 + 5);
+  ctx.lineTo(-w/2 + 3, h/2 - 5);
+  ctx.stroke();
+  
+  // Graduation marks
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+  ctx.lineWidth = 1;
+  ctx.font = '9px monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.textAlign = 'right';
+  for (let i = 1; i <= 4; i++) {
+    const gy = h/2 - (h * i / 5);
+    ctx.beginPath();
+    ctx.moveTo(-w/2, gy);
+    ctx.lineTo(-w/2 + (i % 2 === 0 ? 15 : 10), gy);
+    ctx.stroke();
+    if (i % 2 === 0) ctx.fillText(`${i * 25}ml`, -w/2 - 2, gy + 3);
+  }
+  
+  // Label
+  if (label) {
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.font = 'bold 11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(label, 0, h/2 + 18);
+  }
+  
+  ctx.restore();
+}
+
+// Thermometer with mercury column
+function drawThermometerEnhanced(ctx, x, y, scale, { temperature = 25, minTemp = 0, maxTemp = 100 } = {}) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  const tubeW = 10, tubeH = 80, bulbR = 10;
+  
+  // Background tube
+  ctx.fillStyle = '#1E293B';
+  ctx.strokeStyle = 'rgba(180,220,255,0.6)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(-tubeW/2, -tubeH, tubeW, tubeH, 3);
+  ctx.fill();
+  ctx.stroke();
+  
+  // Mercury column
+  const fillRatio = Math.min(Math.max((temperature - minTemp) / (maxTemp - minTemp), 0), 1);
+  const mercuryH = tubeH * fillRatio;
+  const mercuryGrad = ctx.createLinearGradient(0, 0, 0, -mercuryH);
+  mercuryGrad.addColorStop(0, '#EF4444');
+  mercuryGrad.addColorStop(1, '#F87171');
+  ctx.fillStyle = mercuryGrad;
+  ctx.fillRect(-tubeW/2 + 2, -mercuryH, tubeW - 4, mercuryH);
+  
+  // Bulb
+  ctx.beginPath();
+  ctx.arc(0, bulbR, bulbR, 0, Math.PI * 2);
+  ctx.fillStyle = '#EF4444';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(180,220,255,0.6)';
+  ctx.stroke();
+  
+  // Temperature scale marks
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 1;
+  ctx.font = '8px monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.textAlign = 'left';
+  for (let t = minTemp; t <= maxTemp; t += 10) {
+    const my = -(tubeH * (t - minTemp) / (maxTemp - minTemp));
+    ctx.beginPath();
+    ctx.moveTo(tubeW/2, my);
+    ctx.lineTo(tubeW/2 + 6, my);
+    ctx.stroke();
+    if (t % 20 === 0) ctx.fillText(`${t}°`, tubeW/2 + 8, my + 3);
+  }
+  
+  // Digital readout
+  ctx.fillStyle = '#0F172A';
+  ctx.strokeStyle = 'rgba(96,165,250,0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.roundRect(-20, bulbR + 15, 40, 20, 4);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = temperature > 40 ? '#EF4444' : '#60A5FA';
+  ctx.font = 'bold 12px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${temperature.toFixed(1)}°C`, 0, bulbR + 30);
+  
+  ctx.restore();
+}
+
+// Stopwatch / Timer display
+function drawStopwatch(ctx, x, y, scale, { time = 0, running = false } = {}) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  const r = 35;
+  
+  // Body
+  const bodyGrad = ctx.createRadialGradient(0, 0, r * 0.3, 0, 0, r);
+  bodyGrad.addColorStop(0, '#334155');
+  bodyGrad.addColorStop(1, '#1E293B');
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = running ? '#34D399' : '#64748B';
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  
+  // Inner ring
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.arc(0, 0, r - 5, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  // Time display
+  const mins = Math.floor(time / 60);
+  const secs = (time % 60).toFixed(2);
+  ctx.fillStyle = '#E2E8F0';
+  ctx.font = 'bold 16px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`${mins}:${secs.padStart(5, '0')}`, 0, 5);
+  
+  // Button on top
+  ctx.fillStyle = running ? '#EF4444' : '#34D399';
+  ctx.beginPath();
+  ctx.arc(0, -r - 5, 5, 0, Math.PI * 2);
+  ctx.fill();
+  
+  ctx.restore();
+}
+
+// pH meter / Color indicator strip
+drawpHMeter(ctx, x, y, scale, { pH = 7 } = {}) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  
+  // pH color strip
+  const stripW = 120, stripH = 20;
+  const phGrad = ctx.createLinearGradient(-stripW/2, 0, stripW/2, 0);
+  phGrad.addColorStop(0, '#FF0000');    // pH 0
+  phGrad.addColorStop(0.14, '#FF8800'); // pH 2
+  phGrad.addColorStop(0.29, '#FFFF00'); // pH 4
+  phGrad.addColorStop(0.43, '#00FF00'); // pH 6
+  phGrad.addColorStop(0.57, '#00FFFF'); // pH 8
+  phGrad.addColorStop(0.71, '#0000FF'); // pH 10
+  phGrad.addColorStop(0.86, '#8800FF'); // pH 12
+  phGrad.addColorStop(1, '#8000FF');    // pH 14
+  ctx.fillStyle = phGrad;
+  ctx.beginPath();
+  ctx.roundRect(-stripW/2, -stripH/2, stripW, stripH, 4);
+  ctx.fill();
+  
+  // Indicator marker
+  const markerX = -stripW/2 + (pH / 14) * stripW;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.beginPath();
+  ctx.moveTo(markerX, -stripH/2 - 8);
+  ctx.lineTo(markerX - 4, -stripH/2 - 2);
+  ctx.lineTo(markerX + 4, -stripH/2 - 2);
+  ctx.closePath();
+  ctx.fill();
+  
+  // pH value
+  ctx.fillStyle = '#E2E8F0';
+  ctx.font = 'bold 14px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText(`pH ${pH.toFixed(1)}`, 0, stripH/2 + 18);
+  
+  // Scale labels
+  ctx.font = '8px monospace';
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  for (let i = 0; i <= 14; i += 2) {
+    const lx = -stripW/2 + (i / 14) * stripW;
+    ctx.fillText(i.toString(), lx, stripH/2 + 10);
+  }
+  
+  ctx.restore();
+}
+```
+
+### Measurement Data Table
+
+For practical experiments, include a data table that fills in as measurements are taken:
+
+```html
+<div id="data-table-container" style="background:rgba(15,23,42,0.9); border-radius:8px; padding:12px; margin-top:8px; overflow-x:auto;">
+  <h4 style="color:#94A3B8; font-size:12px; margin:0 0 8px 0; text-transform:uppercase; letter-spacing:1px;">📋 Data Table</h4>
+  <table id="data-table" style="width:100%; border-collapse:collapse; font-size:12px;">
+    <thead>
+      <tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
+        <th style="color:#94A3B8; padding:6px 8px; text-align:left;">Trial</th>
+        <th style="color:#94A3B8; padding:6px 8px; text-align:left;">Volume (ml)</th>
+        <th style="color:#94A3B8; padding:6px 8px; text-align:left;">pH</th>
+        <th style="color:#94A3B8; padding:6px 8px; text-align:left;">Observation</th>
+      </tr>
+    </thead>
+    <tbody id="data-table-body"></tbody>
+  </table>
+</div>
+```
+
+```javascript
+function addDataRow(trial, volume, pH, observation) {
+  const tbody = document.getElementById('data-table-body');
+  const row = document.createElement('tr');
+  row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+  row.innerHTML = `
+    <td style="color:#E2E8F0; padding:6px 8px;">${trial}</td>
+    <td style="color:#60A5FA; padding:6px 8px; font-family:monospace;">${volume.toFixed(1)}</td>
+    <td style="color:#34D399; padding:6px 8px; font-family:monospace;">${pH.toFixed(2)}</td>
+    <td style="color:#FDE68A; padding:6px 8px;">${observation}</td>
+  `;
+  tbody.appendChild(row);
+  // Highlight animation
+  row.style.background = 'rgba(96,165,250,0.1)';
+  setTimeout(() => row.style.background = 'transparent', 1000);
+}
+```
+
 ### Step Panel HTML Structure
 
 ```html
@@ -947,6 +1366,60 @@ For physics practicals (e.g., Ohm's law, lens experiments, pendulum), the simula
 - [ ] Touch-friendly controls on mobile
 - [ ] Canvas resizes properly
 - [ ] postMessage listener is included for widget actions
+
+## PhET Embed System
+
+For standard physics/chemistry experiments that PhET already covers perfectly, consider embedding a PhET simulation instead of generating from scratch. PhET simulations are GPL-licensed and freely embeddable.
+
+### Available PhET Chemistry Simulations
+- `balancing-chemical-equations` — Balance chemical equations visually
+- `reactants-products-leftovers` — See what happens when molecules react
+- `molecule-shapes` — VSEPR theory, molecular geometry
+- `acid-base-solutions` — pH, indicators, concentration
+- `concentration` — Dilution and concentration effects
+- `molarity` — Solution preparation
+- `polarity-and-intermolecular-forces` — Dipole moments
+
+### Available PhET Physics Simulations
+- `forces-and-motion-basics` — Newton's laws
+- `projectile-motion` — Projectile trajectories
+- `wave-interference` — Sound and light waves
+- `circuit-construction-kit` — Build circuits
+- `ohms-law` — Voltage, current, resistance
+- `pendulum-lab` — Simple and compound pendulums
+- `fluid-pressure-and-flow` — Hydrostatics
+
+### Embed Pattern
+
+When a PhET simulation is appropriate, wrap it in our simulation container with custom controls:
+
+```html
+<div id="simulation-container">
+  <!-- Our control panel overlays the PhET iframe -->
+  <div id="phet-controls" style="position:absolute; top:10px; left:10px; z-index:10; background:rgba(15,23,42,0.9); border-radius:8px; padding:12px;">
+    <h3 style="color:#E2E8F0; font-size:14px; margin:0 0 8px;">{{conceptName}}</h3>
+    <div id="live-data-panel" style="color:#94A3B8; font-size:12px;"></div>
+    <button onclick="toggleFullscreen()" style="margin-top:8px;">Fullscreen</button>
+  </div>
+  
+  <!-- PhET simulation iframe -->
+  <iframe 
+    id="phet-frame"
+    src="https://phet.colorado.edu/sims/html/{{phet-sim-name}}/latest/{{phet-sim-name}}_all.html?fs=true&screenNumber=sim-screen"
+    style="width:100%; height:100%; border:none;"
+    allowfullscreen
+    allow="autoplay; fullscreen"
+  ></iframe>
+  
+  <!-- Custom data overlay for live measurements -->
+  <div id="measurement-overlay" style="position:absolute; bottom:10px; right:10px; background:rgba(15,23,42,0.9); border-radius:8px; padding:12px; font-family:monospace; color:#60A5FA;"></div>
+</div>
+```
+
+### When to Use PhET vs Generate
+- **Use PhET** when: The experiment is a standard PhET topic AND visual accuracy matters more than procedural walkthrough
+- **Generate** when: The experiment is a step-by-step procedure OR PhET doesn't cover it OR we need custom observation/equation panels
+- **Combine** when: Use PhET for the visual, add our own step panel and observation overlay on top
 
 ## Output Format
 
