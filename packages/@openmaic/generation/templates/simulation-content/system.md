@@ -1,6 +1,6 @@
 # Simulation Widget Content Generator
 
-**PRIORITY #1: Generate the CANVAS VISUALIZATION first.** The `<canvas>` element with animated drawings of the experiment (apparatus, light rays, circuits, beakers, liquids, pendulums, etc.) is the most important part. Controls and panels are secondary. If you generate controls without a canvas visualization, the simulation is BROKEN.
+**PRIORITY #1: Generate a REAL-TIME INTERACTIVE CANVAS VISUALIZATION.** The `<canvas>` element with animated, interactive drawings of the experiment is the most important part. Students must be able to adjust sliders, drag chemicals, click the canvas, and see the experiment change IMMEDIATELY. No step-through mode. No "click Next" buttons. The student drives the experiment in real-time.
 
 Generate a self-contained HTML simulation with embedded widget configuration.
 
@@ -25,6 +25,8 @@ Generate a self-contained HTML simulation with embedded widget configuration.
 {{snippet:matterjs-physics}}
 
 {{snippet:experiment-visualizations}}
+
+{{snippet:interactive-simulation-patterns}}
 
 ## Educational Design Principles (Singapore OER / Mayer's 12 Principles)
 
@@ -268,14 +270,14 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
 
 ## CRITICAL Design Requirements
 
-### ⚠️ RULE #1: Canvas Visualization Is MANDATORY
+### ⚠️ RULE #1: Real-Time Interactive Canvas Visualization Is MANDATORY
 
-**Every simulation MUST have a visible, animated canvas that shows the actual experiment.**
+**Every simulation MUST have a visible, animated, INTERACTIVE canvas that shows the actual experiment.**
 
-- For **chemistry**: Draw beakers, test tubes, liquids, bubbles, flames, color changes on canvas
-- For **physics**: Draw glass blocks, light rays, circuits, pendulums, lenses, mirrors on canvas
-- For **math**: Draw graphs, geometric shapes, coordinate systems on canvas
-- For **biology**: Draw cells, DNA strands, organisms on canvas
+- For **chemistry**: Draw beakers, test tubes, liquids, bubbles, flames, color changes on canvas. Student adjusts concentration → color changes. Student drags chemical → reaction happens.
+- For **physics**: Draw glass blocks, light rays, circuits, pendulums, lenses, mirrors on canvas. Student adjusts angle → light bends. Student adjusts voltage → current changes.
+- For **math**: Draw graphs, geometric shapes, coordinate systems on canvas. Student adjusts parameters → shape updates in real-time.
+- For **biology**: Draw cells, DNA strands, organisms on canvas.
 
 **The canvas visualization is the MAIN EVENT.** Controls, sliders, panels, buttons are SUPPORTING elements.
 
@@ -284,14 +286,27 @@ html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;
 - ❌ Showing an empty dashboard where the experiment should be
 - ❌ Writing text descriptions instead of drawing the visualization
 - ❌ Using only `<div>` elements for the simulation area
+- ❌ Step-through mode ("Click Next to see step 2") — the student must drive the experiment
+- ❌ Static drawings that don't respond to slider/input changes
+- ❌ "Apply" or "Submit" buttons — changes must happen IMMEDIATELY on slider input
 
 **REQUIRED patterns:**
 - ✅ `<canvas>` element that fills at least 60% of the viewport
 - ✅ `requestAnimationFrame` loop that continuously renders
 - ✅ Actual drawn apparatus (not text labels saying "Glass Block")
 - ✅ Animated elements (moving light rays, bubbling liquids, swinging pendulums)
+- ✅ EVERY slider calls `updateState()` on `input` event — canvas re-renders IMMEDIATELY
+- ✅ Scientific calculations happen in real-time (pH from concentration, current from voltage, etc.)
+- ✅ Colors change as variables change (solution color tracks pH, temperature shows on thermometer)
+- ✅ Drag-and-drop chemicals to beaker — reaction triggers on drop
+- ✅ Click/drag on canvas for direct interaction (move probes, add drops)
+- ✅ Preset experiments that configure all variables with one click
+- ✅ Real-time data panel showing live measurements
+- ✅ Real-time graph plotting variables as experiment runs
 
 The {{snippet:experiment-visualizations}} reference above contains ready-to-use Canvas drawing functions for physics and chemistry experiments. **YOU MUST USE THESE DRAWING FUNCTIONS.** When generating a physics or chemistry simulation, copy the relevant `draw*()` function from the reference and adapt it. Do NOT describe the experiment in text. Do NOT create an empty placeholder. DRAW IT.
+
+The {{snippet:interactive-simulation-patterns}} reference above shows how to make the simulation INTERACTIVE — reactive state, slider → canvas updates, drag-and-drop mixing, real-time calculations, presets, and multiple views.
 
 ### 2. Mobile Layout - NO OVERLAP
 - **Control panel MUST NOT overlap with canvas on mobile**
@@ -461,32 +476,41 @@ function updateButton(text) {
 | Button does nothing | State logic error | Clear state machine with defined transitions |
 | Touch issues | Small touch targets | Min 44px touch targets, larger sliders |
 
-## Chemistry & Physics Practical Lab Mode
+## Chemistry & Physics Practical Lab Mode (REAL-TIME INTERACTIVE)
 
-When the input includes `procedureSteps`, `apparatus`, `chemicals`, `observations`, or `equations` fields, generate a **step-through lab procedure simulation** instead of a parameter-explorer. This mode visualizes a real experiment from start to finish.
+When the input includes `procedureSteps`, `apparatus`, `chemicals`, `observations`, or `equations` fields, generate a **real-time interactive lab simulation** — NOT a step-through animation. The student drives the experiment by interacting with sliders, dragging chemicals, and adjusting variables. The experiment responds IMMEDIATELY.
+
+**CRITICAL: This is NOT a "click Next to see step 2" simulation.** The student:
+- Drags chemicals to the beaker and watches the reaction happen instantly
+- Adjusts concentration/temperature/volume sliders and sees color/pH/bubbles change in real-time
+- Clicks on the canvas to add drops, move probes, take measurements
+- Switches between macro/micro/data views to see the same experiment at different scales
 
 ### Layout
 
 ```
-┌─────────────────────────────────────────────┐
-│  Safety Banner (if safetyNotes provided)     │
-├──────────────┬──────────────────────────────┤
-│  Step Panel  │  Lab Bench (Canvas)          │
-│  ──────────  │                              │
-│  ✅ Step 1   │  [Apparatus + Liquids +      │
-│  🔵 Step 2   │   Reaction Animation]        │
-│  ⬜ Step 3   │                              │
-│  ⬜ Step 4   │                              │
-│              │                              │
-│  ┌────────┐  │  ┌──────────────────────────┐ │
-│  │Obs/Inf │  │  │ Observation Panel        │ │
-│  │Panel   │  │  │ Observation → Inference  │ │
-│  └────────┘  │  │ → Conclusion             │ │
-│              │  └──────────────────────────┘ │
-├──────────────┴──────────────────────────────┤
-│  [◀ Previous]  Step 2/5  [Next ▶]  [Reset]  │
-│  Equation: Zn(s) + 2HCl(aq) → ZnCl₂(aq)    │
-└─────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│  [🔬 Macro] [🧬 Micro] [📊 Data]   ⚠️ Safety: ...       │
+├──────────────────────────────────┬───────────────────────┤
+│                                  │  📋 Live Data Panel   │
+│      Lab Bench (Canvas)          │  pH: 3.2  ⚡         │
+│                                  │  Temp: 28°C 🔥        │
+│  [Beaker + Liquids + Bubbles +   │  Conc: 0.5 mol/L     │
+│   Color Change + Precipitate]    │  Vol: 100 mL         │
+│                                  ├───────────────────────┤
+│                                  │  🧪 Chemical Shelf    │
+│                                  │  [HCl] [NaOH] [Zn]   │
+│                                  │  [CuSO₄] [NaHCO₃]    │
+│                                  ├───────────────────────┤
+│                                  │  📈 pH vs Volume      │
+│   [Real-time graph overlay]      │  ──────────────────   │
+│                                  │  ╱╲    ╱╲            │
+├──────────────────────────────────┴───────────────────────┤
+│  Concentration: ═══════════●═══ 0.50 mol/L               │
+│  Temperature:   ═══════●═══════ 25.0 °C                  │
+│  Volume:        ══════════●════ 100 mL                    │
+│  [▶ Start] [⟲ Reset] [Preset: Strong Acid] [Weak Base]  │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ### Step-Sequencer State Machine
