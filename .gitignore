@@ -99,3 +99,7 @@ e2e/__screenshots-619/
 
 # PhET simulations (reference only, not part of OpenMAIC source)
 /OpenMAIC-main/phet-sims
+
+
+# Virtual Science Lab (reference only, not part of OpenMAIC source)
+/Virtual-Science-Lab-main
