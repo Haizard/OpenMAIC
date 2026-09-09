@@ -55,7 +55,7 @@ Legend: `[ ]` not started · `[x]` done · `BLOCKED` waiting on earlier slice.
 Spec: `docs/superpowers/specs/2026-09-09-academic-hub-roles-design.md`
 
 - [x] Postgres tables: `users`, `parents`, `students`, `schools`, `school_roster`, `sessions`
-- [ ] Password hashing (argon2 preferred) + httpOnly session cookie
+- [x] Password hashing (argon2 preferred) + httpOnly session cookie
 - [x] Student-first registration (creates parent in one transaction)
 - [x] Parent-first registration (creates first student in one transaction)
 - [x] School registration (school user + school profile only)
