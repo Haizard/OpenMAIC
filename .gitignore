@@ -72,8 +72,12 @@ next-env.d.ts
 /data
 /logs
 
-# docs
-/docs
+# docs (keep ignored except academic-hub source of truth)
+/docs/*
+!/docs/academic-hub/
+!/docs/academic-hub/**
+!/docs/superpowers/
+!/docs/superpowers/**
 # Eval results
 eval/whiteboard-layout/results/
 eval/outline-language/results/

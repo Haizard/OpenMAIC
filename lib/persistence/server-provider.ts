@@ -7,6 +7,7 @@ import {
 } from '@openmaic/storage/server/reference';
 import { Pool } from 'pg';
 
+import { ensureAcademicSchema } from '@/lib/academic/schema';
 import { validateAppScene, validateAppStage } from '@/lib/document-store/validators';
 import { lazyAssetByteStore } from '@/lib/persistence/asset-byte-store';
 import { ensureOwnerMaterialSchema } from '@/lib/persistence/owner-materials';
@@ -45,6 +46,7 @@ async function createServerPersistenceProvider(
     await ensureStageMetaSchema(queryable);
     await ensureOwnerMaterialSchema(queryable);
     await ensureAssetSchema(queryable);
+    await ensureAcademicSchema(queryable);
     const withTransaction = nodePostgresTransaction(queryable);
     const byteStore = lazyAssetByteStore(process.env.ASSET_S3_BUCKET, queryable);
     return {
