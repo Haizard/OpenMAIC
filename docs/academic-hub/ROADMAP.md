@@ -56,13 +56,13 @@ Spec: `docs/superpowers/specs/2026-09-09-academic-hub-roles-design.md`
 
 - [x] Postgres tables: `users`, `parents`, `students`, `schools`, `school_roster`, `sessions`
 - [ ] Password hashing (argon2 preferred) + httpOnly session cookie
-- [ ] Student-first registration (creates parent in one transaction)
-- [ ] Parent-first registration (creates first student in one transaction)
-- [ ] School registration (school user + school profile only)
+- [x] Student-first registration (creates parent in one transaction)
+- [x] Parent-first registration (creates first student in one transaction)
+- [x] School registration (school user + school profile only)
 - [ ] Login / logout
 - [ ] Role-gated routes: `/learn/*`, `/parent/*`, `/school/*`
 - [ ] Public landing: Learn vs School, copy never cross-leaks
-- [ ] Student academic level on register (`primary` | `junior_secondary` | `senior_secondary` | `undergraduate` | `postgraduate` | `other`)
+- [x] Student academic level on register (`primary` | `junior_secondary` | `senior_secondary` | `undergraduate` | `postgraduate` | `other`)
 - [ ] Parent: list children, add another child, progress stub
 - [ ] School: roster CRUD (name, grade)
 - [ ] Bind signed-in student id to learner partition (replace spoofable `x-learner-key`)
