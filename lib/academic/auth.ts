@@ -12,7 +12,7 @@ export async function getCurrentSession(): Promise<AcademicSession | null> {
   const sessionCookie = cookieStore.get(SESSION_COOKIE);
   if (!sessionCookie?.value) return null;
 
-  const db = getAcademicDb();
+  const db = await getAcademicDb();
   return readSession(db, sessionCookie.value);
 }
 

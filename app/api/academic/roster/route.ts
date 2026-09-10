@@ -7,7 +7,7 @@ import { randomUUID } from 'node:crypto';
 export async function GET(): Promise<NextResponse> {
   try {
     const session = await requireRole('school');
-    const db = getAcademicDb();
+    const db = await getAcademicDb();
 
     const result = await db.query(
       `SELECT id, student_name, grade
@@ -46,7 +46,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const session = await requireRole('school');
     const body = await request.json();
-    const db = getAcademicDb();
+    const db = await getAcademicDb();
 
     const studentName = body.studentName?.trim();
     const grade = body.grade?.trim();
@@ -99,7 +99,7 @@ export async function DELETE(request: Request): Promise<NextResponse> {
       );
     }
 
-    const db = getAcademicDb();
+    const db = await getAcademicDb();
 
     // Verify the entry belongs to this school
     const result = await db.query(

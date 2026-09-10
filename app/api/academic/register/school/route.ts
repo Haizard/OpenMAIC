@@ -6,7 +6,7 @@ import { getAcademicDb } from '@/lib/academic/db';
 export async function POST(request: Request): Promise<NextResponse> {
   try {
     const body = await request.json();
-    const db = getAcademicDb();
+    const db = await getAcademicDb();
 
     await registerSchool(db, {
       email: body.email,

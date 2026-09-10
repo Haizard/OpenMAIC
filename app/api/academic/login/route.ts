@@ -23,7 +23,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       );
     }
 
-    const db = getAcademicDb();
+    const db = await getAcademicDb();
     const result = await db.query(
       `SELECT id, password_hash, role FROM academic_users WHERE email = $1`,
       [email],

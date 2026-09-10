@@ -11,7 +11,7 @@ export async function POST(): Promise<NextResponse> {
     const sessionCookie = cookieStore.get(SESSION_COOKIE);
     if (sessionCookie?.value) {
       try {
-        const db = getAcademicDb();
+        const db = await getAcademicDb();
         await destroySession(db, sessionCookie.value);
       } catch {
         // DB unavailable: still clear cookies so the browser session ends.

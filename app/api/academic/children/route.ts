@@ -7,7 +7,7 @@ import { getAcademicDb } from '@/lib/academic/db';
 export async function GET(): Promise<NextResponse> {
   try {
     const session = await requireRole('parent');
-    const db = getAcademicDb();
+    const db = await getAcademicDb();
 
     const result = await db.query(
       `SELECT s.id, s.display_name, s.academic_level, u.email
@@ -47,7 +47,7 @@ export async function POST(request: Request): Promise<NextResponse> {
   try {
     const session = await requireRole('parent');
     const body = await request.json();
-    const db = getAcademicDb();
+    const db = await getAcademicDb();
 
     await addChild(db, {
       parentId: session.parentId!,

@@ -14,7 +14,7 @@ export async function GET(): Promise<NextResponse> {
       );
     }
 
-    const db = getAcademicDb();
+    const db = await getAcademicDb();
 
     // Get user info based on role
     let userInfo: Record<string, unknown> = { role: session.role };
