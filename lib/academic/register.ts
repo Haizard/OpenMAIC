@@ -188,7 +188,7 @@ export async function registerParentFirst(
 export async function registerSchool(
   db: AcademicDb,
   input: SchoolRegisterInput,
-): Promise<{ schoolUserId: string }> {
+): Promise<{ schoolUserId: string; schoolId: string }> {
   const email = normalizeEmail(input.email);
   const name = requireName(input.name, 'School name');
   const contact = requireName(input.contact, 'Contact');
@@ -198,11 +198,12 @@ export async function registerSchool(
   try {
     return await withTransaction(db, async (query) => {
       const schoolUserId = await insertUser(query, 'school', email, password);
+      const schoolId = randomUUID();
       await query(
         `INSERT INTO academic_schools (id, user_id, name, contact) VALUES ($1, $2, $3, $4)`,
-        [randomUUID(), schoolUserId, name, contact],
+        [schoolId, schoolUserId, name, contact],
       );
-      return { schoolUserId };
+      return { schoolUserId, schoolId };
     });
   } catch (error) {
     wrapUnique(error, email);
