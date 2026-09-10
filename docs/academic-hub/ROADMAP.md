@@ -11,7 +11,7 @@ This file is the coding-agent contract for turning OpenMAIC into an academic pro
 5. If a decision here conflicts with hallway talk, this file wins until a human updates it.
 6. New features discussed in chat must be added here before implementation.
 
-**Product status:** roles/auth spec approved. Implementation not started.
+**Product status:** Slice 0 in progress. Auth, registration, role-gated routes, and dashboards implemented.
 
 ---
 
@@ -59,12 +59,12 @@ Spec: `docs/superpowers/specs/2026-09-09-academic-hub-roles-design.md`
 - [x] Student-first registration (creates parent in one transaction)
 - [x] Parent-first registration (creates first student in one transaction)
 - [x] School registration (school user + school profile only)
-- [ ] Login / logout
-- [ ] Role-gated routes: `/learn/*`, `/parent/*`, `/school/*`
-- [ ] Public landing: Learn vs School, copy never cross-leaks
+- [x] Login / logout
+- [x] Role-gated routes: `/learn/*`, `/parent/*`, `/school/*`
+- [x] Public landing: Learn vs School, copy never cross-leaks
 - [x] Student academic level on register (`primary` | `junior_secondary` | `senior_secondary` | `undergraduate` | `postgraduate` | `other`)
-- [ ] Parent: list children, add another child, progress stub
-- [ ] School: roster CRUD (name, grade)
+- [x] Parent: list children, add another child, progress stub
+- [x] School: roster CRUD (name, grade)
 - [ ] Bind signed-in student id to learner partition (replace spoofable `x-learner-key`)
 - [ ] Merge anonymous device `learnerKey` into account on first login
 - [ ] Tests: family transaction, duplicate email, role 403, session expiry, header spoof

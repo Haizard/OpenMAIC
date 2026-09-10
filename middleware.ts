@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { isAgentRuntimeConfigured, isProWorkbenchEnabled } from '@/lib/config/feature-flags';
+import { ROLE_COOKIE, getRequiredRole, getRoleFromCookie } from '@/lib/academic/middleware-auth';
 
 /** Convert string to Uint8Array */
 function encode(str: string): Uint8Array {
@@ -55,6 +56,47 @@ export async function middleware(request: NextRequest) {
     isProWorkbenchEnabled() && (!canInspectServerRuntime || isAgentRuntimeConfigured());
   if (!workbenchEnabled && (pathname === '/workbench' || pathname.startsWith('/workbench/'))) {
     return new NextResponse('Not found', { status: 404 });
+  }
+
+  // Academic hub role-based route protection
+  const requiredRole = getRequiredRole(pathname);
+  if (requiredRole) {
+    // Check if session cookie exists
+    const sessionCookie = request.cookies.get('openmaic_session');
+    if (!sessionCookie?.value) {
+      // No session - redirect to login
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { success: false, error: 'Not authenticated' },
+          { status: 401 },
+        );
+      }
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // Check role from role cookie
+    const roleCookie = request.cookies.get(ROLE_COOKIE);
+    const userRole = getRoleFromCookie(roleCookie?.value);
+    
+    if (userRole && userRole !== requiredRole) {
+      // Wrong role - return 403
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          { success: false, error: 'Forbidden' },
+          { status: 403 },
+        );
+      }
+      // Redirect to appropriate dashboard based on actual role
+      const dashboardMap: Record<string, string> = {
+        student: '/learn',
+        parent: '/parent',
+        school: '/school',
+      };
+      const redirectUrl = dashboardMap[userRole] || '/';
+      return NextResponse.redirect(new URL(redirectUrl, request.url));
+    }
   }
 
   const accessCode = process.env.ACCESS_CODE;

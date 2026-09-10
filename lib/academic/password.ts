@@ -1,7 +1,14 @@
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
-const scrypt = promisify(scryptCallback);
+// promisify loses the 4-arg overload in @types/node v20 (it types promisify on
+// the 3-arg REST signature), so keep the options-carrying call explicit.
+const scrypt = promisify(scryptCallback) as (
+  password: string | Buffer,
+  salt: string | Buffer,
+  keylen: number,
+  options: { N: number; r: number; p: number },
+) => Promise<Buffer>;
 
 const N = 16384;
 const R = 8;
@@ -12,7 +19,7 @@ const PREFIX = 'scrypt';
 
 export async function hashPassword(plain: string): Promise<string> {
   const salt = randomBytes(SALT_LEN);
-  const key = (await scrypt(plain, salt, KEY_LEN, { N, r: R, p: P })) as Buffer;
+  const key = await scrypt(plain, salt, KEY_LEN, { N, r: R, p: P });
   return `${PREFIX}$${N}$${R}$${P}$${salt.toString('hex')}$${key.toString('hex')}`;
 }
 
@@ -30,7 +37,7 @@ export async function verifyPassword(plain: string, stored: string): Promise<boo
     const salt = Buffer.from(parts[4], 'hex');
     const expected = Buffer.from(parts[5], 'hex');
     if (salt.length === 0 || expected.length === 0) return false;
-    const actual = (await scrypt(plain, salt, expected.length, { N: n, r, p })) as Buffer;
+    const actual = await scrypt(plain, salt, expected.length, { N: n, r, p });
     if (actual.length !== expected.length) return false;
     return timingSafeEqual(actual, expected);
   } catch {
