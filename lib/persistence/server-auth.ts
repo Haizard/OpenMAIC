@@ -10,6 +10,11 @@
  * localhost or trusted-network, single-user deployments. Production must
  * replace this module with real session verification and derive learner
  * identity from server-controlled claims.
+ *
+ * Slice 0 addition: when a valid academic session cookie is present, the
+ * learner key is derived from the server-side session (student -> user:{id})
+ * instead of the client-supplied x-learner-key. School/parent sessions do not
+ * authenticate as a learner partition.
  */
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage } from 'node:http';
@@ -18,6 +23,9 @@ import type { AssetPrincipal } from '@openmaic/storage';
 import type { RuntimeHttpPrincipal } from '@openmaic/storage/server';
 
 import { createLogger } from '@/lib/logger';
+import { getAcademicDb } from '@/lib/academic/db';
+import { readSession, SESSION_COOKIE } from '@/lib/academic/session';
+import { studentLearnerKey } from '@/lib/academic/learner-principal';
 
 const log = createLogger('PersistenceAuth');
 
@@ -70,38 +78,63 @@ function secureEqual(left: string, right: string): boolean {
   return timingSafeEqual(leftDigest, rightDigest);
 }
 
+async function learnerKeyFromSession(cookieValue: string): Promise<string | undefined> {
+  try {
+    const db = await getAcademicDb();
+    const session = await readSession(db, cookieValue);
+    if (session && session.role === 'student' && session.studentId) {
+      return studentLearnerKey(session.studentId);
+    }
+    // Parent and school sessions do not own a learner partition in v1.
+    return undefined;
+  } catch {
+    // DB unavailable: fall back to client-supplied key below.
+    return undefined;
+  }
+}
+
 function authenticatePersistenceCredentials(
   authorization: string | undefined,
   learnerKey: string | undefined,
+  sessionDerivedKey: string | undefined,
 ): PersistencePrincipal | undefined {
   if (!devAuthenticatorAllowedInCurrentEnvironment()) return undefined;
 
   const token = process.env.PERSISTENCE_DEV_TOKEN;
   if (!token || !authorization || !secureEqual(authorization, `Bearer ${token}`)) return undefined;
 
-  // Documents are stored without any ownership partition, so assets are
-  // stored under one shared principal to match: this authenticator provides
-  // no user isolation either way (the header is client-supplied), and a
-  // per-header asset partition only meant a converted document's assets
-  // became unreadable to every other browser the document was shared with.
-  // The learner key still partitions runtime sessions, which are genuinely
-  // per-learner state. Production replaces this module with real session
-  // verification and derives both from server-controlled claims.
-  return { key: SHARED_ASSET_PRINCIPAL, ...(learnerKey ? { learnerKey } : {}) };
+  // A session-derived learner key wins over the client-supplied x-learner-key
+  // so a signed-in student cannot be smuggled into another partition.
+  const effectiveLearnerKey = sessionDerivedKey ?? learnerKey;
+
+  return {
+    key: SHARED_ASSET_PRINCIPAL,
+    ...(effectiveLearnerKey ? { learnerKey: effectiveLearnerKey } : {}),
+  };
 }
 
-export function authenticatePersistenceHeaders(headers: Headers): PersistencePrincipal | undefined {
-  return authenticatePersistenceCredentials(
-    headers.get('authorization') ?? undefined,
-    headers.get('x-learner-key') ?? undefined,
+export function authenticatePersistenceHeaders(headers: Headers): Promise<PersistencePrincipal | undefined> {
+  const authorization = headers.get('authorization') ?? undefined;
+  const learnerKey = headers.get('x-learner-key') ?? undefined;
+  const sessionCookie = headers.get(SESSION_COOKIE);
+
+  return learnerKeyFromSession(sessionCookie ?? '').then((sessionDerivedKey) =>
+    authenticatePersistenceCredentials(authorization, learnerKey, sessionDerivedKey),
   );
 }
 
+// Keep the synchronous overload for callers that still pass IncomingMessage
+// directly and cannot await the session read.
 export async function authenticatePersistenceRequest(
   req: IncomingMessage,
 ): Promise<PersistencePrincipal | undefined> {
-  return authenticatePersistenceCredentials(
-    singleHeader(req.headers.authorization),
-    singleHeader(req.headers['x-learner-key']),
-  );
+  const authorization = singleHeader(req.headers.authorization);
+  const learnerKey = singleHeader(req.headers['x-learner-key']);
+  const sessionCookie = singleHeader(req.headers[SESSION_COOKIE.toLowerCase()]);
+
+  const sessionDerivedKey = sessionCookie
+    ? await learnerKeyFromSession(sessionCookie)
+    : undefined;
+
+  return authenticatePersistenceCredentials(authorization, learnerKey, sessionDerivedKey);
 }
