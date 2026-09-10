@@ -36,22 +36,22 @@
 - [x] `POST /api/academic/children` (parent-only, add child)
 - [x] `GET /api/academic/roster` (school-only)
 - [x] `POST /api/academic/roster` (school-only)
-- [ ] `DELETE /api/academic/roster/[id]` (school-only) — REST path-param delete
+- [x] `DELETE /api/academic/roster/[id]` (school-only) — REST path-param delete
 
 ## Routing and guards
 
 - [x] Middleware: unauthenticated `/learn`, `/parent`, `/school` redirect to `/login`
 - [x] Middleware: wrong-role redirects to the correct dashboard
-- [ ] Server role-gate layouts: `app/learn/layout.tsx`, `app/parent/layout.tsx`, `app/school/layout.tsx`
-- [ ] Wrong-world 403 page (`app/academic-forbidden/page.tsx`)
-- [ ] Shared auth form component (`components/academic/auth-form.tsx`)
+- [x] Server role-gate layouts: `app/learn/layout.tsx`, `app/parent/layout.tsx`, `app/school/layout.tsx`
+- [x] Wrong-world 403 page (`app/academic-forbidden/page.tsx`)
+- [x] Shared auth form component (`components/academic/auth-form.tsx`)
 
 ## Learner partition
 
-- [ ] `lib/academic/learner-principal.ts` (`studentLearnerKey`)
-- [ ] `tests/academic/learner-principal.test.ts` (header spoof ignored when session present; school has no learner key)
-- [ ] `lib/persistence/server-auth.ts` derives principal from academic session, not `x-learner-key`
-- [ ] `lib/persistence/bootstrap.ts` sends `user:{studentId}` after login; calls `mergeLearner` once for previously anonymous devices
+- [x] `lib/academic/learner-principal.ts` (`studentLearnerKey`)
+- [x] `tests/academic/learner-principal.test.ts` (header spoof ignored when session present; school has no learner key)
+- [x] `lib/persistence/server-auth.ts` derives principal from academic session, not `x-learner-key`
+- [x] `lib/persistence/bootstrap.ts` sends `user:{studentId}` after login; calls `mergeLearner` once for previously anonymous devices
 
 ## Pages
 
@@ -66,6 +66,6 @@
 
 ## Verification
 
-- [ ] `pnpm exec vitest run tests/academic` passes
+- [x] `pnpm exec vitest run tests/academic` passes (35/35)
 - [ ] Typecheck on touched files passes
 - [ ] Student, parent with two children, and school can log in to the correct panel and cannot open the other world
