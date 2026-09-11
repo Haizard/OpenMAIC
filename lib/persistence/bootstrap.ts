@@ -89,7 +89,7 @@ async function tryMergeAnonymousToAccount(accountKey: string): Promise<void> {
   if (mergeAttempted) return;
   mergeAttempted = true;
 
-  const anonKey = anonymousLearnerKey ?? (deviceKv ? getLearnerKey(deviceKv).catch(() => undefined) : undefined);
+  const anonKey = anonymousLearnerKey ?? (deviceKv ? await getLearnerKey(deviceKv).catch(() => undefined) : undefined);
   if (!anonKey) return;
 
   // Only merge when the anonymous key is actually an anonymous device key.
