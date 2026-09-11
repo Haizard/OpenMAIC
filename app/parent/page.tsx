@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ACADEMIC_LEVELS } from '@/lib/academic/types';
-import { GraduationCap, Plus, LogOut, User } from 'lucide-react';
+import { GraduationCap, Plus, LogOut, User, FileQuestion } from 'lucide-react';
 
 interface Child {
   id: string;
@@ -112,10 +112,16 @@ export default function ParentDashboard() {
               <p className="text-sm text-muted-foreground">Monitor your children&apos;s learning</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => router.push('/parent/quizzes')}>
+              <FileQuestion className="w-4 h-4 mr-2" />
+              Quiz Results
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 

@@ -8,8 +8,13 @@ let schemaEnsured = false;
 async function ensureSchemaIfNeeded(pool: Pool): Promise<void> {
   if (schemaEnsured) return;
   try {
-    const { ensureAcademicSchema } = await import('@/lib/academic/schema');
-    await ensureAcademicSchema(pool as unknown as import('@/lib/academic/schema').AcademicQueryable);
+    const [{ ensureAcademicSchema }, { ensureQuizSchema }] = await Promise.all([
+      import('@/lib/academic/schema'),
+      import('@/lib/academic/quiz-schema'),
+    ]);
+    const queryable = pool as unknown as import('@/lib/academic/schema').AcademicQueryable;
+    await ensureAcademicSchema(queryable);
+    await ensureQuizSchema(queryable);
     schemaEnsured = true;
   } catch (error) {
     console.error('Failed to ensure academic schema:', error);
@@ -33,11 +38,13 @@ export async function getAcademicDb(): Promise<AcademicDb> {
   const pool = getPool();
   await ensureSchemaIfNeeded(pool);
   return {
-    query: (text, params) => pool.query(text, params),
+    query: <TRow>(text: string, params?: unknown[]) =>
+      pool.query(text, params) as unknown as Promise<{ rows: TRow[] }>,
     connect: async () => {
       const client = await pool.connect();
       return {
-        query: (text: string, params?: unknown[]) => client.query(text, params),
+        query: <TRow>(text: string, params?: unknown[]) =>
+          client.query(text, params) as unknown as Promise<{ rows: TRow[] }>,
         release: () => client.release(),
       };
     },

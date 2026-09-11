@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Building2, Plus, Trash2, LogOut, User } from 'lucide-react';
+import { Building2, Plus, Trash2, LogOut, User, FileQuestion } from 'lucide-react';
 
 interface RosterEntry {
   id: string;
@@ -121,10 +121,16 @@ export default function SchoolDashboard() {
               <p className="text-sm text-muted-foreground">Manage your debate roster</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => router.push('/school/quizzes')}>
+              <FileQuestion className="w-4 h-4 mr-2" />
+              Quizzes
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 

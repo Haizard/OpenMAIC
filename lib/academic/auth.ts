@@ -27,10 +27,15 @@ export async function requireSession(): Promise<AcademicSession> {
   return session;
 }
 
+export type AcademicRole = 'student' | 'parent' | 'school';
+
 /**
  * Require a session with a specific role. Throws if not authenticated or wrong role.
  */
-export async function requireRole(role: 'student' | 'parent' | 'school'): Promise<AcademicSession> {
+export async function requireRole(role: 'student'): Promise<AcademicSession & { role: 'student'; studentId: string }>;
+export async function requireRole(role: 'parent'): Promise<AcademicSession & { role: 'parent'; parentId: string }>;
+export async function requireRole(role: 'school'): Promise<AcademicSession & { role: 'school'; schoolId: string }>;
+export async function requireRole(role: AcademicRole): Promise<AcademicSession> {
   const session = await requireSession();
   if (session.role !== role) {
     throw new Error('Forbidden');

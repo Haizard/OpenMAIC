@@ -4,9 +4,9 @@ import { hashPassword } from '@/lib/academic/password';
 import { isAcademicLevel, type AcademicLevel } from '@/lib/academic/types';
 
 export interface AcademicDb {
-  query: (text: string, params?: unknown[]) => Promise<{ rows: unknown[] }>;
+  query: <TRow = unknown>(text: string, params?: unknown[]) => Promise<{ rows: TRow[] }>;
   connect?: () => Promise<{
-    query: (text: string, params?: unknown[]) => Promise<{ rows: unknown[] }>;
+    query: <TRow = unknown>(text: string, params?: unknown[]) => Promise<{ rows: TRow[] }>;
     release: () => void;
   }>;
 }

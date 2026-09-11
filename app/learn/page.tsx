@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, LogOut, BookOpen } from 'lucide-react';
+import { GraduationCap, LogOut, BookOpen, FileQuestion } from 'lucide-react';
 
 interface StudentInfo {
   display_name: string;
@@ -66,10 +66,16 @@ export default function LearnDashboard() {
               </p>
             </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
-            <LogOut className="w-4 h-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => router.push('/learn/quizzes')}>
+              <FileQuestion className="w-4 h-4 mr-2" />
+              Quizzes
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLogout}>
+              <LogOut className="w-4 h-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
