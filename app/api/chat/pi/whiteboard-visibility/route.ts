@@ -29,7 +29,7 @@ function validBody(value: unknown): value is {
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
-  const principal = authenticatePersistenceHeaders(req.headers);
+  const principal = await authenticatePersistenceHeaders(req.headers);
   if (!principal?.learnerKey) {
     return apiError('INVALID_CREDENTIALS', 401, 'Invalid persistence development binding');
   }

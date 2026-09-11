@@ -170,7 +170,7 @@ export async function POST(req: NextRequest) {
       process.env.DATABASE_URL &&
       process.env.PERSISTENCE_DEV_TOKEN
     ) {
-      const principal = authenticatePersistenceHeaders(req.headers);
+      const principal = await authenticatePersistenceHeaders(req.headers);
       const learnerKey = principal?.learnerKey;
       if (learnerKey && learnerKey === learnerKey.trim()) {
         try {
