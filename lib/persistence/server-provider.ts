@@ -9,6 +9,8 @@ import { Pool } from 'pg';
 
 import { ensureAcademicSchema } from '@/lib/academic/schema';
 import { ensureQuizSchema } from '@/lib/academic/quiz-schema';
+import { ensureCurriculumSchema } from '@/lib/academic/curriculum-schema';
+import { ensureAssignmentSchema } from '@/lib/academic/assignment-schema';
 import { validateAppScene, validateAppStage } from '@/lib/document-store/validators';
 import { lazyAssetByteStore } from '@/lib/persistence/asset-byte-store';
 import { ensureOwnerMaterialSchema } from '@/lib/persistence/owner-materials';
@@ -49,6 +51,8 @@ async function createServerPersistenceProvider(
     await ensureAssetSchema(queryable);
     await ensureAcademicSchema(queryable);
     await ensureQuizSchema(queryable);
+    await ensureCurriculumSchema(queryable);
+    await ensureAssignmentSchema(queryable);
     const withTransaction = nodePostgresTransaction(queryable);
     const byteStore = lazyAssetByteStore(process.env.ASSET_S3_BUCKET, queryable);
     return {

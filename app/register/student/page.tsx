@@ -17,10 +17,45 @@ export default function StudentRegisterPage() {
     studentPassword: '',
     studentDisplayName: '',
     academicLevel: 'primary',
+    formLevel: 'standard-1',
     parentEmail: '',
     parentPassword: '',
     parentDisplayName: '',
   });
+
+  // Forms available for each level
+  const formsByLevel: Record<string, { value: string; label: string }[]> = {
+    primary: [
+      { value: 'standard-1', label: 'Standard 1' },
+      { value: 'standard-2', label: 'Standard 2' },
+      { value: 'standard-3', label: 'Standard 3' },
+      { value: 'standard-4', label: 'Standard 4' },
+      { value: 'standard-5', label: 'Standard 5' },
+      { value: 'standard-6', label: 'Standard 6' },
+      { value: 'standard-7', label: 'Standard 7' },
+    ],
+    secondary: [
+      { value: 'form-1', label: 'Form 1' },
+      { value: 'form-2', label: 'Form 2' },
+      { value: 'form-3', label: 'Form 3' },
+      { value: 'form-4', label: 'Form 4' },
+    ],
+    a_level: [
+      { value: 'form-5', label: 'Form 5' },
+      { value: 'form-6', label: 'Form 6' },
+    ],
+    // Legacy mappings
+    junior_secondary: [
+      { value: 'form-1', label: 'Form 1' },
+      { value: 'form-2', label: 'Form 2' },
+      { value: 'form-3', label: 'Form 3' },
+    ],
+    senior_secondary: [
+      { value: 'form-4', label: 'Form 4' },
+      { value: 'form-5', label: 'Form 5' },
+      { value: 'form-6', label: 'Form 6' },
+    ],
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +118,7 @@ export default function StudentRegisterPage() {
             {/* Student Details */}
             <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
               <h3 className="text-sm font-medium text-foreground">Your Details</h3>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="studentDisplayName">Your Name</Label>
                 <Input
@@ -121,27 +156,61 @@ export default function StudentRegisterPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="academicLevel">Academic Level</Label>
+                <Label htmlFor="academicLevel">Education Level</Label>
                 <select
                   id="academicLevel"
                   value={form.academicLevel}
-                  onChange={(e) => updateField('academicLevel', e.target.value)}
+                  onChange={(e) => {
+                    const newLevel = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      academicLevel: newLevel,
+                      formLevel: formsByLevel[newLevel]?.[0]?.value || '',
+                    }));
+                  }}
                   className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm"
                   required
                 >
-                  {ACADEMIC_LEVELS.map((level) => (
+                  {ACADEMIC_LEVELS.filter(
+                    (l) => !['junior_secondary', 'senior_secondary'].includes(l),
+                  ).map((level) => (
                     <option key={level} value={level}>
-                      {level.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                      {level === 'primary'
+                        ? 'Primary Education (Standard 1-7)'
+                        : level === 'secondary'
+                          ? 'Secondary Education (Form 1-4)'
+                          : level === 'a_level'
+                            ? 'Advanced Level (Form 5-6)'
+                            : level.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                     </option>
                   ))}
                 </select>
               </div>
+
+              {formsByLevel[form.academicLevel] && (
+                <div className="space-y-2">
+                  <Label htmlFor="formLevel">Form/Grade</Label>
+                  <select
+                    id="formLevel"
+                    value={form.formLevel}
+                    onChange={(e) => updateField('formLevel', e.target.value)}
+                    className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                    required
+                  >
+                    {formsByLevel[form.academicLevel].map((f) => (
+                      <option key={f.value} value={f.value}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             {/* Parent Details */}
             <div className="space-y-3 p-4 bg-muted/30 rounded-lg">
               <h3 className="text-sm font-medium text-foreground">Parent/Guardian Details</h3>
-              
+
               <div className="space-y-2">
                 <Label htmlFor="parentDisplayName">Parent Name</Label>
                 <Input

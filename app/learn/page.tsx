@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { GraduationCap, LogOut, BookOpen, FileQuestion } from 'lucide-react';
+import { GraduationCap, LogOut, BookOpen, FileQuestion, Compass } from 'lucide-react';
 
 interface StudentInfo {
   display_name: string;
@@ -67,6 +67,10 @@ export default function LearnDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => router.push('/learn/curriculum')}>
+              <Compass className="w-4 h-4 mr-2" />
+              Curriculum
+            </Button>
             <Button variant="outline" size="sm" onClick={() => router.push('/learn/quizzes')}>
               <FileQuestion className="w-4 h-4 mr-2" />
               Quizzes
@@ -88,15 +92,21 @@ export default function LearnDashboard() {
             <p className="text-muted-foreground mb-6">
               Start creating interactive courses with AI-powered learning experiences.
             </p>
-            
+
             {student?.academic_level && (
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 rounded-full text-sm text-muted-foreground mb-6">
-                Academic Level: {student.academic_level.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
+                Academic Level:{' '}
+                {student.academic_level.replace(/_/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
               </div>
             )}
 
-            <div className="mt-8">
-              <Button size="lg" onClick={() => router.push('/')}>
+            <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center">
+              <Button size="lg" onClick={() => router.push('/learn/curriculum')}>
+                <Compass className="w-5 h-5 mr-2" />
+                Browse Curriculum
+              </Button>
+              <Button size="lg" variant="outline" onClick={() => router.push('/')}>
+                <BookOpen className="w-5 h-5 mr-2" />
                 Start Learning
               </Button>
             </div>

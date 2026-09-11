@@ -8,13 +8,25 @@ let schemaEnsured = false;
 async function ensureSchemaIfNeeded(pool: Pool): Promise<void> {
   if (schemaEnsured) return;
   try {
-    const [{ ensureAcademicSchema }, { ensureQuizSchema }] = await Promise.all([
+    const [
+      { ensureAcademicSchema },
+      { ensureQuizSchema },
+      { ensureCurriculumSchema },
+      { ensureAssignmentSchema },
+      { seedCurriculum },
+    ] = await Promise.all([
       import('@/lib/academic/schema'),
       import('@/lib/academic/quiz-schema'),
+      import('@/lib/academic/curriculum-schema'),
+      import('@/lib/academic/assignment-schema'),
+      import('@/lib/academic/curriculum-seed'),
     ]);
     const queryable = pool as unknown as import('@/lib/academic/schema').AcademicQueryable;
     await ensureAcademicSchema(queryable);
     await ensureQuizSchema(queryable);
+    await ensureCurriculumSchema(queryable);
+    await ensureAssignmentSchema(queryable);
+    await seedCurriculum(queryable);
     schemaEnsured = true;
   } catch (error) {
     console.error('Failed to ensure academic schema:', error);
