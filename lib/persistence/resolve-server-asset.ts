@@ -48,7 +48,7 @@ export async function resolveServerAsset(
   // documented stopgap for this deployment shape — its cost surface is
   // accepted until real per-learner principals land in a later part of the
   // RFC; do not extend it here.
-  const principal = authenticatePersistenceHeaders(headers);
+  const principal = await authenticatePersistenceHeaders(headers);
   // The authenticator always supplies a partition key on success, but its type
   // leaves it optional; a keyless principal fails closed as unauthenticated.
   if (!principal?.key) return { status: 'unauthenticated' };
