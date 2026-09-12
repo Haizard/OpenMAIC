@@ -14,6 +14,16 @@ import {
 
 type AssignmentStatus = 'pending' | 'submitted' | 'late';
 
+interface HomeworkQuestion {
+  prompt: string;
+  choices: string[];
+  /** Only present once the student has answered — the list never carries the answer key. */
+  correctIndex: number | null;
+  explanation: string;
+  answeredIndex: number | null;
+  wasCorrect: boolean | null;
+}
+
 interface HomeworkItem {
   id: string;
   title: string;
@@ -24,6 +34,7 @@ interface HomeworkItem {
   status: AssignmentStatus;
   dueAt: string | null;
   submittedAt: string | null;
+  content: HomeworkQuestion | null;
 }
 
 interface Homework {
@@ -42,6 +53,99 @@ function formatDue(dueAt: string | null): string {
     month: 'short',
     year: 'numeric',
   });
+}
+
+
+/**
+ * The generated question attached to a homework item, in this student's own choice order.
+ *
+ * Answering is instant feedback — which is the point of a tuition platform — but it does not
+ * submit the work. A student can answer, read the explanation, and then decide to hand it in.
+ */
+function Question({
+  item,
+  onAnswered,
+}: {
+  item: HomeworkItem;
+  onAnswered: () => void;
+}) {
+  const question = item.content;
+  const [choice, setChoice] = useState<number | null>(question?.answeredIndex ?? null);
+  const [result, setResult] = useState<{
+    correct: boolean;
+    correctIndex: number;
+    explanation: string;
+  } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!question) return null;
+
+  const answered = choice !== null;
+  const correctIndex = result?.correctIndex ?? question.correctIndex;
+  const explanation = result?.explanation || question.explanation;
+
+  async function answer(index: number) {
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(`/api/academic/homework/${item.id}/answer`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ choiceIndex: index }),
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.error ?? 'Could not save your answer');
+        return;
+      }
+      setChoice(index);
+      setResult({ correct: data.correct, correctIndex: data.correctIndex, explanation: data.explanation });
+      onAnswered();
+    } catch {
+      setError('Could not save your answer');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 border-t border-border/60 pt-3">
+      <p className="text-sm text-foreground mb-2">{question.prompt}</p>
+      <div className="flex flex-col gap-1.5">
+        {question.choices.map((text, index) => {
+          const isChosen = choice === index;
+          const isRight = answered && correctIndex === index;
+          const isWrongChoice = isChosen && correctIndex !== null && correctIndex !== index;
+          return (
+            <button
+              key={index}
+              type="button"
+              disabled={busy}
+              onClick={() => answer(index)}
+              className={`text-left text-sm rounded-lg border px-3 py-2 transition-colors ${
+                isRight
+                  ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40'
+                  : isWrongChoice
+                    ? 'border-red-400 bg-red-50 dark:bg-red-950/30'
+                    : isChosen
+                      ? 'border-foreground/40 bg-muted/50'
+                      : 'border-border/60 hover:bg-muted/40'
+              }`}
+            >
+              {text}
+            </button>
+          );
+        })}
+      </div>
+      {answered && correctIndex !== null ? (
+        <p className="mt-2 text-xs text-muted-foreground">
+          {question.wasCorrect ? 'Correct.' : 'Not quite.'} {explanation}
+        </p>
+      ) : null}
+      {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
+    </div>
+  );
 }
 
 export default function HomeworkPage() {
@@ -214,6 +318,7 @@ export default function HomeworkPage() {
                                 </span>
                               )}
                             </div>
+                            <Question item={item} onAnswered={fetchHomework} />
                           </div>
                         ))}
                       </div>

@@ -1,5 +1,6 @@
 import type { AcademicDb } from '@/lib/academic/register';
-import { attachContentToHomework } from '@/lib/academic/delivery';
+import { attachContentToHomework, choiceOrderFor, seedFor } from '@/lib/academic/delivery';
+import { ValidationError } from '@/lib/academic/register';
 import type { AssignmentStatus } from '@/lib/academic/assignment';
 
 /**
@@ -22,6 +23,22 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type HomeworkBucket = 'overdue' | 'due_soon' | 'later';
 
+/**
+ * A bank-backed question as one student sees it.
+ *
+ * `correctIndex` is null until they answer. Revealing it in the list would hand every student
+ * the answer key along with the homework.
+ */
+export interface HomeworkQuestion {
+  prompt: string;
+  choices: string[];
+  /** Where the correct answer sits in `choices` — only set once answered. */
+  correctIndex: number | null;
+  explanation: string;
+  answeredIndex: number | null;
+  wasCorrect: boolean | null;
+}
+
 export interface HomeworkItem {
   id: string;
   title: string;
@@ -31,6 +48,11 @@ export interface HomeworkItem {
   subjectName: string | null;
   /** Phase D: the bank item this work was drawn from, or null when none was published. */
   contentItemId: string | null;
+  /**
+   * The question, with the choices in this student's own order. Null for homework that is not
+   * bank-backed. The correct answer is deliberately absent until the student has answered.
+   */
+  content: HomeworkQuestion | null;
   status: AssignmentStatus;
   dueAt: Date | null;
   submittedAt: Date | null;
@@ -162,8 +184,12 @@ export async function listHomeworkForStudent(
 
   const result = await db.query<RawHomework>(
     `SELECT h.id, h.title, h.description, h.topic_id, h.content_item_id, h.status, h.due_at,
-            h.submitted_at, t.name AS topic_name, sub.name AS subject_name
+            h.submitted_at, h.content_choice_index, h.content_answer_correct,
+            ci.prompt AS question_prompt, ci.choices AS question_choices,
+            ci.correct_index AS question_correct_index, ci.explanation AS question_explanation,
+            t.name AS topic_name, sub.name AS subject_name
      FROM academic_assignments h
+     LEFT JOIN academic_content_items ci ON ci.id = h.content_item_id
      LEFT JOIN curriculum_topics t ON t.id = h.topic_id
      LEFT JOIN curriculum_subjects sub ON sub.id = t.subject_id
      WHERE h.student_id = $1 AND h.kind = 'homework'
@@ -171,7 +197,7 @@ export async function listHomeworkForStudent(
     [studentId],
   );
 
-  return bucketItems(result.rows.map(mapHomeworkItem), now);
+  return bucketItems(result.rows.map((row) => mapHomeworkItem(row, studentId)), now);
 }
 
 /**
@@ -205,7 +231,7 @@ export async function listPendingHomeworkForParent(
       studentName: row.student_name,
       items: [],
     };
-    entry.items.push(mapHomeworkItem(row));
+    entry.items.push(mapHomeworkItem(row, row.student_id));
     byStudent.set(row.student_id, entry);
   }
 
@@ -216,6 +242,73 @@ export async function listPendingHomeworkForParent(
   }));
 }
 
+
+// ─── Answering a generated question ───────────────────────────────────
+
+export interface HomeworkAnswerResult {
+  readonly correct: boolean;
+  /** Where the right answer sits in the choices this student was shown. */
+  readonly correctIndex: number;
+  readonly explanation: string;
+}
+
+/**
+ * Answer a bank-backed homework question.
+ *
+ * The index is the position the student clicked, not the position the answer is stored in — the
+ * choices were shuffled for them, so it is resolved back through the seed before it is graded.
+ * Answering does not submit the homework: submission stays the student's own action, because a
+ * homework item can also require a recording before it can be handed in.
+ */
+export async function answerHomework(
+  db: AcademicDb,
+  studentId: string,
+  assignmentId: string,
+  choiceIndex: number,
+): Promise<HomeworkAnswerResult> {
+  const result = await db.query<{
+    choices: string[] | string | null;
+    correct_index: number | null;
+    explanation: string | null;
+    content_item_id: string;
+  }>(
+    `SELECT ci.choices, ci.correct_index, ci.explanation, ci.id AS content_item_id
+     FROM academic_assignments h
+     JOIN academic_content_items ci ON ci.id = h.content_item_id
+     WHERE h.id = $1 AND h.student_id = $2 AND h.kind = 'homework'`,
+    [assignmentId, studentId],
+  );
+
+  const row = result.rows[0];
+  if (!row) throw new ValidationError('That homework has no question to answer');
+
+  if (!Number.isInteger(choiceIndex) || choiceIndex < 0) {
+    throw new ValidationError('Choose one of the answers');
+  }
+
+  const choices = parseChoices(row.choices);
+  if (choiceIndex >= choices.length) {
+    throw new ValidationError('Choose one of the answers');
+  }
+
+  const order = choiceOrderFor(choices.length, seedFor(studentId, row.content_item_id));
+  const trueIndex = order[choiceIndex] ?? -1;
+  const correct = trueIndex === row.correct_index;
+
+  await db.query(
+    `UPDATE academic_assignments
+      SET content_choice_index = $2, content_answer_correct = $3, updated_at = NOW()
+      WHERE id = $1`,
+    [assignmentId, choiceIndex, correct],
+  );
+
+  return {
+    correct,
+    correctIndex: row.correct_index === null ? -1 : order.indexOf(row.correct_index),
+    explanation: row.explanation ?? '',
+  };
+}
+
 // ─── Mappers ───────────────────────────────────────────────────────────
 
 interface RawHomework {
@@ -224,6 +317,12 @@ interface RawHomework {
   description: string;
   topic_id: string | null;
   content_item_id: string | null;
+  content_choice_index: number | null;
+  content_answer_correct: boolean | null;
+  question_prompt: string | null;
+  question_choices: string[] | string | null;
+  question_correct_index: number | null;
+  question_explanation: string | null;
   status: string;
   due_at: Date | string | null;
   submitted_at: Date | string | null;
@@ -240,13 +339,55 @@ function toDate(v: Date | string): Date {
   return v instanceof Date ? v : new Date(v);
 }
 
-function mapHomeworkItem(row: RawHomework): HomeworkItem {
+function parseChoices(value: string[] | string | null): string[] {
+  if (!value) return [];
+  if (Array.isArray(value)) return value;
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Rebuild the question the way this student saw it.
+ *
+ * The choices are reshuffled from the same seed used when the drill was served, so the position
+ * the student clicked can be resolved back to a real answer. Until they answer, `correctIndex`
+ * and `explanation` stay empty: a list payload is not a place for an answer key.
+ */
+function questionFor(row: RawHomework, studentId: string): HomeworkQuestion | null {
+  if (!row.content_item_id || row.question_prompt === null) return null;
+
+  const stored = parseChoices(row.question_choices);
+  if (stored.length === 0) return null;
+
+  const order = choiceOrderFor(stored.length, seedFor(studentId, row.content_item_id));
+  const answered = row.content_choice_index;
+  const hasAnswered = answered !== null;
+
+  return {
+    prompt: row.question_prompt,
+    choices: order.map((index) => stored[index] ?? ''),
+    correctIndex:
+      hasAnswered && row.question_correct_index !== null
+        ? order.indexOf(row.question_correct_index)
+        : null,
+    explanation: hasAnswered ? (row.question_explanation ?? '') : '',
+    answeredIndex: answered,
+    wasCorrect: row.content_answer_correct,
+  };
+}
+
+function mapHomeworkItem(row: RawHomework, studentId: string): HomeworkItem {
   return {
     id: row.id,
     title: row.title,
     description: row.description,
     topicId: row.topic_id,
     contentItemId: row.content_item_id,
+    content: questionFor(row, studentId),
     topicName: row.topic_name,
     subjectName: row.subject_name,
     status: row.status as AssignmentStatus,

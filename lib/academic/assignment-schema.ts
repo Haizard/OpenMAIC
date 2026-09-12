@@ -60,6 +60,13 @@ ALTER TABLE academic_assignments ADD COLUMN IF NOT EXISTS content_item_id TEXT;
 
 CREATE INDEX IF NOT EXISTS academic_assignments_content_item_idx
   ON academic_assignments (content_item_id);
+
+-- Phase D: the answer to a bank-backed question. Stored as the position the student clicked,
+-- never as a true/false they could read off the page, and resolved against the item through the
+-- same seed the choices were shuffled with.
+ALTER TABLE academic_assignments ADD COLUMN IF NOT EXISTS content_choice_index INTEGER;
+
+ALTER TABLE academic_assignments ADD COLUMN IF NOT EXISTS content_answer_correct BOOLEAN;
 `;
 
 function splitSqlStatements(sql: string): string[] {
