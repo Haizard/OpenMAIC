@@ -16,6 +16,7 @@ async function ensureSchemaIfNeeded(pool: Pool): Promise<void> {
       { ensureReadingSchema },
       { ensureHolidaySchema },
       { ensureSourceSchema },
+      { ensureContentSchema },
       { ensurePracticeSchema },
       { seedCurriculum },
       { seedReadings },
@@ -28,6 +29,7 @@ async function ensureSchemaIfNeeded(pool: Pool): Promise<void> {
       import('@/lib/academic/reading-schema'),
       import('@/lib/academic/holiday-schema'),
       import('@/lib/academic/source-schema'),
+      import('@/lib/academic/content-schema'),
       import('@/lib/academic/practice-schema'),
       import('@/lib/academic/curriculum-seed'),
       import('@/lib/academic/reading-seed'),
@@ -46,6 +48,9 @@ async function ensureSchemaIfNeeded(pool: Pool): Promise<void> {
     await ensureHolidaySchema(queryable);
     // Source documents reference curriculum forms and subjects, so they come after the seed.
     await ensureSourceSchema(queryable);
+    // Content items reference curriculum subjects, topics and source documents, so they come
+    // after all three.
+    await ensureContentSchema(queryable);
     // Practice items reference curriculum_topics, so the curriculum must be seeded first.
     await ensurePracticeSchema(queryable);
     await seedPracticeItems(queryable);

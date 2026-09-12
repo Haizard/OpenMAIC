@@ -321,19 +321,31 @@ tested slices get their content — and must not start until the bank holds real
 Operator access is an env token (`ACADEMIC_OPERATOR_TOKEN`), not an account — see rule 9 (no
 teacher role) and rule 10 (Haitham is the only human in the loop). Console: `/operator`.
 
-### Phase B — Generate (grounded)
+### Phase B — Generate (grounded) — DONE 2026-09-12
 
-- [ ] Retrieve relevant chunks for a topic
-- [ ] Generate homework / quiz / holiday / reading items **from those chunks**
-- [ ] Refuse to generate when the source is too thin; mark `needs_more_source`
-- [ ] Provenance: source document, chunk, model, generated_at on every item
-- [ ] Tests: item carries provenance; thin source is refused, not invented
+- [x] Retrieve relevant chunks for a topic (`searchActiveChunks`, falling back to the opening
+      chunks when a topic's own words do not appear in the text)
+- [x] Generate homework / quiz / practice items **from those chunks** (`lib/academic/content-bank.ts`)
+- [x] Refuse to generate when the source is too thin (`MIN_SOURCE_CHARS`); the API answers 422
+      with `no_source` or `thin_source` and names the subject that needs a book
+- [x] Provenance: source document, chunk ids, model, generated_at on every item
+- [x] Tests: item carries provenance; thin source is refused, not invented (31 tests)
 
-### Phase C — Review
+Two deliberate calls:
 
-- [ ] Draft → publish queue for Haitham
-- [ ] Discard, edit
-- [ ] Coverage dashboard: published / draft / flagged per form and topic
+- **Blocked topics are computed, not stored** (`listGenerationBlockers`). A stored
+  "needs more source" row goes stale the moment Haitham uploads the book, and a dashboard that
+  still says "no source" after an upload is worse than no dashboard.
+- **Reading-passage generation is deferred.** Slice 2's reading library has a different shape
+  (title + body + questions) from a bank item, and forcing it into `prompt`/`explanation` would
+  have been a lie. Kinds are `homework | quiz | practice`, all multiple-choice.
+
+### Phase C — Review — done for drafts 2026-09-12
+
+- [x] Draft → publish queue for Haitham (in the `/operator` console)
+- [x] Discard, edit
+- [ ] Coverage dashboard: published / draft / flagged per form and topic — the coverage table
+      covers source documents only; a per-item view is still missing
 
 ### Phase D — Deliver (the refactor)
 

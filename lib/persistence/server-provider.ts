@@ -13,6 +13,7 @@ import { ensureCurriculumSchema } from '@/lib/academic/curriculum-schema';
 import { ensureAssignmentSchema } from '@/lib/academic/assignment-schema';
 import { ensureHolidaySchema } from '@/lib/academic/holiday-schema';
 import { ensureSourceSchema } from '@/lib/academic/source-schema';
+import { ensureContentSchema } from '@/lib/academic/content-schema';
 import { validateAppScene, validateAppStage } from '@/lib/document-store/validators';
 import { lazyAssetByteStore } from '@/lib/persistence/asset-byte-store';
 import { ensureOwnerMaterialSchema } from '@/lib/persistence/owner-materials';
@@ -58,6 +59,7 @@ async function createServerPersistenceProvider(
     await ensureHolidaySchema(queryable);
     // Source documents reference curriculum forms and subjects, so they come after both exist.
     await ensureSourceSchema(queryable);
+    await ensureContentSchema(queryable);
     const withTransaction = nodePostgresTransaction(queryable);
     const byteStore = lazyAssetByteStore(process.env.ASSET_S3_BUCKET, queryable);
     return {

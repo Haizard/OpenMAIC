@@ -29,6 +29,26 @@ interface CoverageRow {
   uploadedAt: string | null;
 }
 
+interface TopicRef {
+  id: string;
+  name: string;
+}
+
+interface ContentItem {
+  id: string;
+  subjectId: string;
+  topicId: string | null;
+  kind: string;
+  language: string;
+  prompt: string;
+  choices: string[] | null;
+  correctIndex: number | null;
+  explanation: string;
+  status: string;
+  model: string | null;
+  generatedAt: string | null;
+}
+
 export default function OperatorPage() {
   const [token, setToken] = useState('');
   const [tokenReady, setTokenReady] = useState(false);
@@ -45,6 +65,17 @@ export default function OperatorPage() {
   const [pasted, setPasted] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+
+  const [topics, setTopics] = useState<TopicRef[]>([]);
+  const [genSubject, setGenSubject] = useState('');
+  const [genTopic, setGenTopic] = useState('');
+  const [genKind, setGenKind] = useState('homework');
+  const [genLanguage, setGenLanguage] = useState('en');
+  const [genCount, setGenCount] = useState(8);
+  const [generating, setGenerating] = useState(false);
+
+  const [drafts, setDrafts] = useState<ContentItem[]>([]);
+  const [reviewMessage, setReviewMessage] = useState<string | null>(null);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(TOKEN_KEY);
@@ -81,6 +112,85 @@ export default function OperatorPage() {
   useEffect(() => {
     if (tokenReady && token) void loadCoverage(token);
   }, [tokenReady, token, loadCoverage]);
+
+  const loadDrafts = useCallback(async (activeToken: string) => {
+    const response = await fetch('/api/academic/operator/content?status=draft', {
+      headers: { 'x-academic-operator-token': activeToken },
+    });
+    const data = await response.json();
+    if (data.success) setDrafts(data.items as ContentItem[]);
+  }, []);
+
+  useEffect(() => {
+    if (tokenReady && token) void loadDrafts(token);
+  }, [tokenReady, token, loadDrafts]);
+
+  useEffect(() => {
+    if (!tokenReady || !token || !genSubject) {
+      setTopics([]);
+      return;
+    }
+    void (async () => {
+      const response = await fetch(
+        `/api/academic/operator/topics?subjectId=${encodeURIComponent(genSubject)}`,
+        { headers: { 'x-academic-operator-token': token } },
+      );
+      const data = await response.json();
+      setTopics(data.success ? (data.topics as TopicRef[]) : []);
+    })();
+  }, [tokenReady, token, genSubject]);
+
+  const generate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setReviewMessage(null);
+    setError(null);
+    setGenerating(true);
+    try {
+      const response = await fetch('/api/academic/operator/content', {
+        method: 'POST',
+        headers: {
+          'x-academic-operator-token': token,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          subjectId: genSubject,
+          ...(genTopic ? { topicId: genTopic } : {}),
+          kind: genKind,
+          language: genLanguage,
+          count: genCount,
+        }),
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.message ?? data.error ?? 'Generation failed');
+        return;
+      }
+      setReviewMessage(`${data.items.length} drafts generated. Review them below.`);
+      await loadDrafts(token);
+    } catch {
+      setError('Generation failed');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const review = async (id: string, action: 'publish' | 'discard') => {
+    setReviewMessage(null);
+    const response = await fetch(`/api/academic/operator/content/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'x-academic-operator-token': token,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ action }),
+    });
+    const data = await response.json();
+    if (!data.success) {
+      setError(data.error ?? 'Update failed');
+      return;
+    }
+    await loadDrafts(token);
+  };
 
   const subjects = useMemo(
     () =>
@@ -285,6 +395,131 @@ export default function OperatorPage() {
         </form>
         {error ? <p className="mt-3 text-sm text-destructive">{error}</p> : null}
         {notice ? <p className="mt-3 text-sm text-emerald-700">{notice}</p> : null}
+      </section>
+
+      <section className="mb-8 rounded-lg border p-4">
+        <h2 className="mb-3 text-lg font-medium">Generate from the source</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Items are generated only from the uploaded book for that subject, and land as drafts.
+        </p>
+        <form onSubmit={generate} className="grid gap-3 md:grid-cols-3">
+          <label className="flex flex-col gap-1 text-sm">
+            Subject
+            <select
+              value={genSubject}
+              onChange={(event) => {
+                setGenSubject(event.target.value);
+                setGenTopic('');
+              }}
+              className="rounded-md border px-3 py-2"
+            >
+              <option value="">Select…</option>
+              {subjects.map((subject) => (
+                <option key={subject.id} value={subject.id}>
+                  {subject.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            Topic (optional)
+            <select
+              value={genTopic}
+              onChange={(event) => setGenTopic(event.target.value)}
+              className="rounded-md border px-3 py-2"
+            >
+              <option value="">Whole subject</option>
+              {topics.map((topic) => (
+                <option key={topic.id} value={topic.id}>
+                  {topic.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            Kind
+            <select
+              value={genKind}
+              onChange={(event) => setGenKind(event.target.value)}
+              className="rounded-md border px-3 py-2"
+            >
+              <option value="homework">Homework</option>
+              <option value="quiz">Quiz</option>
+              <option value="practice">Practice</option>
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            Language
+            <select
+              value={genLanguage}
+              onChange={(event) => setGenLanguage(event.target.value)}
+              className="rounded-md border px-3 py-2"
+            >
+              <option value="en">English</option>
+              <option value="sw">Kiswahili</option>
+            </select>
+          </label>
+
+          <label className="flex flex-col gap-1 text-sm">
+            Questions
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={genCount}
+              onChange={(event) => setGenCount(Number(event.target.value))}
+              className="rounded-md border px-3 py-2"
+            />
+          </label>
+
+          <div className="flex items-end">
+            <Button type="submit" disabled={generating || !genSubject}>
+              {generating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Generate
+            </Button>
+          </div>
+        </form>
+      </section>
+
+      <section className="mb-8 rounded-lg border p-4">
+        <h2 className="mb-3 text-lg font-medium">Review drafts ({drafts.length})</h2>
+        {reviewMessage ? <p className="mb-3 text-sm text-emerald-700">{reviewMessage}</p> : null}
+        {drafts.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No drafts waiting.</p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {drafts.map((item) => (
+              <li key={item.id} className="rounded-md border p-3">
+                <p className="text-sm font-medium">{item.prompt}</p>
+                {item.choices ? (
+                  <ol className="mt-2 list-inside list-decimal text-sm text-muted-foreground">
+                    {item.choices.map((choice, index) => (
+                      <li key={index} className={index === item.correctIndex ? 'font-medium' : ''}>
+                        {choice}
+                      </li>
+                    ))}
+                  </ol>
+                ) : null}
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {item.kind} · {item.language} · {item.model ?? 'unknown model'} · correct answer
+                  shown in bold
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">{item.explanation}</p>
+                <div className="mt-3 flex gap-2">
+                  <Button size="sm" onClick={() => review(item.id, 'publish')}>
+                    Publish
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => review(item.id, 'discard')}>
+                    Discard
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section>
