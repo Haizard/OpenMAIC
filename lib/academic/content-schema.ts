@@ -39,6 +39,21 @@ CREATE INDEX IF NOT EXISTS academic_content_items_topic_idx
 -- The query every delivery path will run: live items of a kind for a subject.
 CREATE INDEX IF NOT EXISTS academic_content_items_pool_idx
   ON academic_content_items (subject_id, kind, status);
+
+-- Student reports of a bad question. One flag per student per item, so a single unhappy
+-- learner cannot unpublish a question on their own, and a coordinated pile-on is visible
+-- as distinct rows rather than an inflated count.
+CREATE TABLE IF NOT EXISTS academic_content_flags (
+  id TEXT PRIMARY KEY,
+  item_id TEXT NOT NULL REFERENCES academic_content_items(id) ON DELETE CASCADE,
+  student_id TEXT NOT NULL REFERENCES academic_students(id) ON DELETE CASCADE,
+  reason TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (item_id, student_id)
+);
+
+CREATE INDEX IF NOT EXISTS academic_content_flags_item_idx
+  ON academic_content_flags (item_id);
 `;
 
 function splitSqlStatements(sql: string): string[] {

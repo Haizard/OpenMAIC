@@ -504,6 +504,76 @@ export async function updateContentItem(
   return mapItem(result.rows[0]);
 }
 
+export interface ContentCoverageRow {
+  readonly levelId: string;
+  readonly levelName: string;
+  readonly formId: string;
+  readonly formName: string;
+  readonly subjectId: string;
+  readonly subjectName: string;
+  readonly draft: number;
+  readonly published: number;
+  readonly flagged: number;
+  readonly retired: number;
+  readonly total: number;
+}
+
+/**
+ * Items per curriculum subject, split by status.
+ *
+ * Published is the only column that reaches a student. The gap between published and draft is
+ * how much work is sitting unreviewed, which is the number Haitham actually needs to see.
+ */
+export async function listContentCoverage(db: AcademicDb): Promise<readonly ContentCoverageRow[]> {
+  const result = await db.query<{
+    level_id: string;
+    level_name: string;
+    form_id: string;
+    form_name: string;
+    subject_id: string;
+    subject_name: string;
+    draft: string | number;
+    published: string | number;
+    flagged: string | number;
+    retired: string | number;
+  }>(
+    `SELECT lv.id AS level_id, lv.name AS level_name,
+            fm.id AS form_id, fm.name AS form_name,
+            sj.id AS subject_id, sj.name AS subject_name,
+            COALESCE(SUM(CASE WHEN ci.status = 'draft' THEN 1 ELSE 0 END), 0) AS draft,
+            COALESCE(SUM(CASE WHEN ci.status = 'published' THEN 1 ELSE 0 END), 0) AS published,
+            COALESCE(SUM(CASE WHEN ci.status = 'flagged' THEN 1 ELSE 0 END), 0) AS flagged,
+            COALESCE(SUM(CASE WHEN ci.status = 'retired' THEN 1 ELSE 0 END), 0) AS retired
+      FROM curriculum_subjects sj
+      JOIN curriculum_forms fm ON fm.id = sj.form_id
+      JOIN curriculum_levels lv ON lv.id = fm.level_id
+      LEFT JOIN academic_content_items ci ON ci.subject_id = sj.id
+      GROUP BY lv.id, lv.name, fm.id, fm.name, sj.id, sj.name,
+               lv.sort_order, fm.sort_order, sj.sort_order
+      ORDER BY lv.sort_order, fm.sort_order, sj.sort_order`,
+  );
+
+  return result.rows.map((row) => {
+    const draft = Number(row.draft);
+    const published = Number(row.published);
+    const flagged = Number(row.flagged);
+    const retired = Number(row.retired);
+    return {
+      levelId: row.level_id,
+      levelName: row.level_name,
+      formId: row.form_id,
+      formName: row.form_name,
+      subjectId: row.subject_id,
+      subjectName: row.subject_name,
+      draft,
+      published,
+      flagged,
+      retired,
+      total: draft + published + flagged + retired,
+    };
+  });
+}
+
 export interface CurriculumTopicRef {
   readonly id: string;
   readonly name: string;

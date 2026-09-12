@@ -34,6 +34,18 @@ interface TopicRef {
   name: string;
 }
 
+interface ContentCoverageRow {
+  levelName: string;
+  formName: string;
+  subjectId: string;
+  subjectName: string;
+  draft: number;
+  published: number;
+  flagged: number;
+  retired: number;
+  total: number;
+}
+
 interface ContentItem {
   id: string;
   subjectId: string;
@@ -76,6 +88,7 @@ export default function OperatorPage() {
 
   const [drafts, setDrafts] = useState<ContentItem[]>([]);
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
+  const [contentCoverage, setContentCoverage] = useState<ContentCoverageRow[]>([]);
 
   useEffect(() => {
     const stored = window.localStorage.getItem(TOKEN_KEY);
@@ -89,18 +102,27 @@ export default function OperatorPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('/api/academic/operator/coverage', {
-        headers: { 'x-academic-operator-token': activeToken },
-      });
-      const data = await response.json();
+      const [sourceResponse, contentResponse] = await Promise.all([
+        fetch('/api/academic/operator/coverage', {
+          headers: { 'x-academic-operator-token': activeToken },
+        }),
+        fetch('/api/academic/operator/content?view=coverage', {
+          headers: { 'x-academic-operator-token': activeToken },
+        }),
+      ]);
+      const data = await sourceResponse.json();
       if (data.success) {
         setCoverage(data.coverage as CoverageRow[]);
       } else {
         setError(data.error ?? 'Could not load coverage');
-        if (response.status === 401) {
+        if (sourceResponse.status === 401) {
           window.localStorage.removeItem(TOKEN_KEY);
           setTokenReady(false);
         }
+      }
+      if (contentResponse.ok) {
+        const contentData = await contentResponse.json();
+        if (contentData.success) setContentCoverage(contentData.coverage as ContentCoverageRow[]);
       }
     } catch {
       setError('Could not reach the server');
@@ -522,8 +544,44 @@ export default function OperatorPage() {
         )}
       </section>
 
+      <section className="mb-8">
+        <h2 className="mb-1 text-lg font-medium">Content coverage</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Published is the only column a student can see. The gap between draft and published is
+          how much is waiting on you.
+        </p>
+        <div className="overflow-x-auto rounded-lg border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50 text-left">
+              <tr>
+                <th className="px-3 py-2">Level</th>
+                <th className="px-3 py-2">Form</th>
+                <th className="px-3 py-2">Subject</th>
+                <th className="px-3 py-2 text-right">Draft</th>
+                <th className="px-3 py-2 text-right">Published</th>
+                <th className="px-3 py-2 text-right">Flagged</th>
+                <th className="px-3 py-2 text-right">Retired</th>
+              </tr>
+            </thead>
+            <tbody>
+              {contentCoverage.map((row) => (
+                <tr key={row.subjectId} className="border-t">
+                  <td className="px-3 py-2">{row.levelName}</td>
+                  <td className="px-3 py-2">{row.formName}</td>
+                  <td className="px-3 py-2">{row.subjectName}</td>
+                  <td className="px-3 py-2 text-right">{row.draft}</td>
+                  <td className="px-3 py-2 text-right">{row.published}</td>
+                  <td className="px-3 py-2 text-right">{row.flagged}</td>
+                  <td className="px-3 py-2 text-right text-muted-foreground">{row.retired}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <section>
-        <h2 className="mb-3 text-lg font-medium">Coverage</h2>
+        <h2 className="mb-3 text-lg font-medium">Source coverage</h2>
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : (

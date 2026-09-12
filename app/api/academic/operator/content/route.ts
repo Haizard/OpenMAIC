@@ -7,6 +7,7 @@ import {
   CONTENT_KINDS,
   ContentValidationError,
   generateContentForTopic,
+  listContentCoverage,
   listContentItems,
   listGenerationBlockers,
   type ContentKind,
@@ -28,6 +29,10 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     if (params.get('blockers') === 'true') {
       return NextResponse.json({ success: true, blockers: await listGenerationBlockers(db) });
+    }
+
+    if (params.get('view') === 'coverage') {
+      return NextResponse.json({ success: true, coverage: await listContentCoverage(db) });
     }
 
     const kind = params.get('kind');
