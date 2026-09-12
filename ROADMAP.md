@@ -13,17 +13,18 @@ This file is the coding-agent contract for turning OpenMAIC into an academic pro
 
 **Product status:** Slices 0–6 complete and tested (227 tests, commit 09eb44d). The AI content
 platform is built through **A (ingest), B (generation), C (review), D (delivery), E (quality
-loop)** and **F (the operator agent)** — 350 academic tests green. **None of it is pushed: the
-push needs Haitham's credentials.**
+loop)**, **F (the operator agent)** and **G (quizzes)** — 369 academic tests green. **None of it
+is pushed: the push needs Haitham's credentials.**
 
 **Phases D and F are complete.** Homework, holiday packages and practice all draw from the shared
 bank with per-student mixing, and every one of them falls back to what it did before when the bank
 has nothing published for that topic. Upload a book and the agent fills the bank for its topics on
 its own. The AI content platform is now end to end.
 
-**The one hole left in it is quizzes.** `/learn/quizzes` still reads the Slice 1
-`academic_quizzes` table, which only a teacher could fill — and there is no teacher. The bank can
-already generate `quiz` items; nothing serves them. See Phase G.
+**Quizzes have content again (Phase G).** `/learn/quizzes` read a table only a teacher could fill,
+so under rule 9 it could never be filled at all. It now serves the bank first and keeps school
+quizzes as the fallback: any topic in a student's form with enough published `quiz` items is a quiz
+they can sit, graded on the server from their own seed.
 
 **Nothing is on `origin/main`.** Six commits sit local — the push needs Haitham's credentials.
 
@@ -431,7 +432,7 @@ Deliberate calls:
 - **One topic's failure does not stop the run.** Each attempt is logged and the run continues; a
   single bad generation should not cost Haitham the other nine.
 
-### Phase G — Re-point quizzes at the bank — NOT STARTED
+### Phase G — Re-point quizzes at the bank — DONE 2026-09-12
 
 Found while building Phase F, not requested separately. `/learn/quizzes` and its two pages read
 `academic_quizzes`, a Slice 1 table whose rows were authored by a teacher. Rule 9 removed the
@@ -441,11 +442,30 @@ possible content. Meanwhile the bank already generates `quiz` items that nobody 
 
 This is Phase D applied a third time: consult the bank, keep today's behaviour as the fallback.
 
-- [ ] Serve bank `quiz` items through the quiz list, per student, with the usual mixing
-- [ ] Run a quiz: answer, score, and review — scored from the seed, not from the client
-- [ ] The agent should stock `quiz` once something consumes it (move it into `AGENT_KINDS`)
+- [x] Serve bank `quiz` items through the quiz list, per student, with the usual mixing
+- [x] Run a quiz: answer, score, and review — scored from the seed, not from the client
+- [x] The agent stocks `quiz` now that something consumes it (`AGENT_KINDS`)
 - [ ] Decide what happens to `academic_quizzes`: it is dead weight under rule 9, but deleting it
       loses the submission history, so this needs a decision before it needs code
+
+How it works, and the four calls made:
+
+- **A quiz is a topic, not a row.** Any topic in the student's form with at least
+  `MIN_ITEMS_FOR_QUIZ` published `quiz` items is offered as a `QUIZ_LENGTH`-question quiz. There
+  is no author and no quiz record — the bank is the quiz, which is the only shape that survives
+  there being no teacher.
+- **A new table, `academic_bank_quiz_attempts`, and not one of the two that existed.**
+  `academic_quiz_submissions` cannot hold them: it references `academic_quizzes`, whose rows are
+  owned by a school, and rule 9 removed the only role that made one. `academic_practice_attempts`
+  must not hold them: every row there feeds topic mastery, and a test score counted as practice
+  would tell the guidance engine a student had trained a topic they had only been examined on.
+- **Blank answers count against the student.** `maxScore` is the length of the quiz, not the number
+  answered — otherwise skipping a question would look the same as knowing it.
+- **School quizzes are still listed.** The bank is consulted first and today's behaviour is the
+  fallback, exactly as in Phase D. Whether `academic_quizzes` should be dropped at all is left as
+  an open decision above.
+
+19 new tests (`tests/academic/quiz-bank.test.ts`).
 
 ---
 

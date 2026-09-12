@@ -11,6 +11,7 @@ import { ingestSourceDocument } from '@/lib/academic/source';
 import type { SourcePage } from '@/lib/academic/source-chunk';
 import { listContentItems, publishContentItem } from '@/lib/academic/content-bank';
 import {
+  AGENT_KINDS,
   AGENT_MAX_TOPICS_PER_RUN,
   AGENT_TARGET_ITEMS_PER_TOPIC,
   listAgentRuns,
@@ -117,7 +118,7 @@ describe('planAgentWork', () => {
     const plan = await planAgentWork(pool);
     expect(plan.length).toBeGreaterThan(0);
     // Every kind the agent stocks, for every topic in the subject.
-    expect(plan.length).toBe((await topicCount()) * 2);
+    expect(plan.length).toBe((await topicCount()) * AGENT_KINDS.length);
     expect(plan.every((item) => item.subjectId === SUBJECT_ID)).toBe(true);
   });
 

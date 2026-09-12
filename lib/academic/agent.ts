@@ -41,10 +41,12 @@ export const AGENT_MAX_TOPICS_PER_RUN = 10;
 export const AGENT_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 
 /**
- * The kinds the agent stocks by default: the ones students actually pull. `quiz` is generated
- * but nothing serves it yet.
+ * The kinds the agent stocks by default: the ones students actually pull.
+ *
+ * `quiz` joined this list in Phase G, once `/learn/quizzes` started serving bank quizzes. Before
+ * that, stocking it would have been spending on questions nobody was ever asked.
  */
-export const AGENT_KINDS = ['homework', 'practice'] as const;
+export const AGENT_KINDS = ['homework', 'practice', 'quiz'] as const;
 
 export interface AgentWorkItem {
   readonly subjectId: string;

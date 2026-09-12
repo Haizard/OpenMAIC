@@ -368,7 +368,7 @@ export async function listPracticeForParent(
  * Rule 8: content is curriculum-scoped. A practice id from another level must be refused, not
  * merely filtered out of a list.
  */
-async function assertTopicInScope(
+export async function assertTopicInScope(
   db: AcademicDb,
   studentId: string,
   topicId: string,

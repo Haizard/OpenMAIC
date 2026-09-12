@@ -168,7 +168,16 @@ describe('choice ordering', () => {
     const forAmina = displayChoices(item, amina);
     const forJuma = displayChoices(item, juma);
     expect([...forAmina.choices].sort()).toEqual([...forJuma.choices].sort());
-    expect(forAmina.order).not.toEqual(forJuma.order);
+
+    // Any two students can land on the same permutation by chance — with four choices that is
+    // 1 in 24, which is a test that fails every few runs. What has to hold is that the order
+    // varies across students at all, so assert that instead.
+    const orders = new Set(
+      [amina, juma, 'student-c', 'student-d', 'student-e', 'student-f'].map((id) =>
+        choiceOrderFor(4, seedFor(id, item.id)).join(','),
+      ),
+    );
+    expect(orders.size).toBeGreaterThan(1);
   });
 
   it('grades the clicked answer, not the position it was shown in', async () => {

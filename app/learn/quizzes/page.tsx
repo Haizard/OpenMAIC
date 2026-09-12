@@ -15,6 +15,18 @@ interface Quiz {
   createdAt: string;
 }
 
+interface BankQuiz {
+  topicId: string;
+  topicName: string;
+  subjectName: string;
+  questionCount: number;
+  attemptCount: number;
+  bestScore: number | null;
+  bestMaxScore: number | null;
+  lastScore: number | null;
+  lastMaxScore: number | null;
+}
+
 interface Submission {
   id: string;
   quizId: string;
@@ -29,6 +41,7 @@ export default function StudentQuizzesPage() {
   const router = useRouter();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [bankQuizzes, setBankQuizzes] = useState<BankQuiz[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,9 +50,10 @@ export default function StudentQuizzesPage() {
 
   const fetchData = async () => {
     try {
-      const [quizzesRes, submissionsRes] = await Promise.all([
+      const [quizzesRes, submissionsRes, bankRes] = await Promise.all([
         fetch('/api/academic/quizzes/published'),
         fetch('/api/academic/quizzes/my-submissions'),
+        fetch('/api/academic/quizzes/bank'),
       ]);
 
       if (quizzesRes.status === 401 || submissionsRes.status === 401) {
@@ -52,6 +66,11 @@ export default function StudentQuizzesPage() {
 
       if (quizzesData.success) setQuizzes(quizzesData.quizzes);
       if (submissionsData.success) setSubmissions(submissionsData.submissions);
+
+      if (bankRes.ok) {
+        const bankData = await bankRes.json();
+        if (bankData.success) setBankQuizzes(bankData.quizzes);
+      }
     } catch {
       console.error('Failed to fetch quizzes');
     } finally {
@@ -87,14 +106,58 @@ export default function StudentQuizzesPage() {
       </header>
 
       <main className="max-w-4xl mx-auto p-6">
-        {quizzes.length === 0 ? (
-          <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-border/60">
-            <FileQuestion className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-foreground mb-2">No quizzes available</h3>
-            <p className="text-sm text-muted-foreground">Check back later for new quizzes.</p>
-          </div>
-        ) : (
-          <div className="grid gap-4">
+        {bankQuizzes.length > 0 ? (
+          <section className="mb-8">
+            <h2 className="text-lg font-semibold text-foreground">Topic quizzes</h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Generated from your textbooks. Everyone in your class sits the same questions in a
+              different order.
+            </p>
+            <div className="grid gap-4">
+              {bankQuizzes.map((quiz) => (
+                <div
+                  key={quiz.topicId}
+                  className="bg-white dark:bg-slate-900 rounded-xl p-6 border border-border/60 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileQuestion className="w-5 h-5 text-blue-500" />
+                        <h3 className="font-medium text-foreground">
+                          {quiz.subjectName} · {quiz.topicName}
+                        </h3>
+                      </div>
+                      <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                        <span>{quiz.questionCount} questions</span>
+                        {quiz.bestScore !== null && (
+                          <span className="flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Best: {quiz.bestScore}/{quiz.bestMaxScore}
+                          </span>
+                        )}
+                        {quiz.attemptCount > 0 && quiz.lastScore !== null && (
+                          <span>
+                            Last: {quiz.lastScore}/{quiz.lastMaxScore}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Link href={`/learn/quizzes/bank/${quiz.topicId}`}>
+                      <Button size="sm">
+                        {quiz.attemptCount > 0 ? 'Try again' : 'Start Quiz'}
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        ) : null}
+
+        {quizzes.length > 0 ? (
+          <section>
+            <h2 className="text-lg font-semibold text-foreground mb-4">School quizzes</h2>
+            <div className="grid gap-4">
             {quizzes.map((quiz) => {
               const submission = getSubmissionForQuiz(quiz.id);
               return (
@@ -148,8 +211,15 @@ export default function StudentQuizzesPage() {
                 </div>
               );
             })}
+            </div>
+          </section>
+        ) : bankQuizzes.length === 0 ? (
+          <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-2xl border border-border/60">
+            <FileQuestion className="w-12 h-12 text-muted-foreground/40 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">No quizzes available</h3>
+            <p className="text-sm text-muted-foreground">Check back later for new quizzes.</p>
           </div>
-        )}
+        ) : null}
       </main>
     </div>
   );

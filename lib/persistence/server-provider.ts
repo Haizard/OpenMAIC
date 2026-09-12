@@ -15,6 +15,7 @@ import { ensureHolidaySchema } from '@/lib/academic/holiday-schema';
 import { ensureSourceSchema } from '@/lib/academic/source-schema';
 import { ensureContentSchema } from '@/lib/academic/content-schema';
 import { ensureAgentSchema } from '@/lib/academic/agent-schema';
+import { ensureQuizBankSchema } from '@/lib/academic/quiz-bank-schema';
 import { validateAppScene, validateAppStage } from '@/lib/document-store/validators';
 import { lazyAssetByteStore } from '@/lib/persistence/asset-byte-store';
 import { ensureOwnerMaterialSchema } from '@/lib/persistence/owner-materials';
@@ -62,6 +63,7 @@ async function createServerPersistenceProvider(
     await ensureSourceSchema(queryable);
     await ensureContentSchema(queryable);
     await ensureAgentSchema(queryable);
+    await ensureQuizBankSchema(queryable);
     const withTransaction = nodePostgresTransaction(queryable);
     const byteStore = lazyAssetByteStore(process.env.ASSET_S3_BUCKET, queryable);
     return {
