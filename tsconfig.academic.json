@@ -6,6 +6,7 @@
     "app/learn/**/*.tsx",
     "app/parent/**/*.tsx",
     "app/register/**/*.tsx",
+    "app/operator/**/*.tsx",
     "components/academic/**/*.tsx",
     "tests/academic/**/*.ts",
     "next-env.d.ts"

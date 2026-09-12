@@ -129,7 +129,7 @@ function isUniqueViolation(error: unknown): boolean {
   return /duplicate key|unique constraint|already exists/i.test(message);
 }
 
-async function withTransaction<T>(
+export async function withTransaction<T>(
   db: AcademicDb,
   work: (query: AcademicDb['query']) => Promise<T>,
 ): Promise<T> {
