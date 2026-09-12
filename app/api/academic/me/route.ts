@@ -21,9 +21,11 @@ export async function GET(): Promise<NextResponse> {
 
     if (session.role === 'student' && session.studentId) {
       const result = await db.query(
-        `SELECT s.display_name, s.academic_level, u.email
+        `SELECT s.display_name, s.academic_level, u.email,
+                f.name AS form_name, f.slug AS form_slug
          FROM academic_students s
          JOIN academic_users u ON u.id = s.user_id
+         LEFT JOIN curriculum_forms f ON f.id = s.curriculum_form_id
          WHERE s.id = $1`,
         [session.studentId],
       );

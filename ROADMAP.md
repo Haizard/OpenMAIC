@@ -11,7 +11,27 @@ This file is the coding-agent contract for turning OpenMAIC into an academic pro
 5. If a decision here conflicts with hallway talk, this file wins until a human updates it.
 6. New features discussed in chat must be added here before implementation.
 
-**Product status:** Slice 0 complete — roles, auth, and dual worlds fully implemented and tested.
+**Product status:** Slices 0–6 complete and tested (227 tests). Slice 7 (content generation with
+a review gate) is **scoped in this file but not started** — its boxes are unchecked and no
+`content-gen` code exists yet. Start there, or replace it with a different slice.
+
+---
+
+## North star
+
+The product is an **online tuition platform**: a student can **learn, practice, read, and get
+full guidance across their whole student journey.**
+
+Four pillars. Every slice must visibly serve at least one of them.
+
+| Pillar | Meaning | Where it lives |
+| --- | --- | --- |
+| **Learn** | Taught content — the AI classroom, courses, assignments | OpenMAIC generation + `/learn` |
+| **Practice** | Deliberate training — quizzes, drills, worked solutions, error review | `/learn/quizzes`, future drill engine |
+| **Read** | Self-study material — lesson notes, reading library, past papers | `/learn/read` (Slice 2) |
+| **Guidance** | The map — study plans, progress, "what to do next", parent mentoring | `/learn`, `/parent` (Slice 5) |
+
+A pillar with nothing under it is a hole in the product, not a future feature.
 
 ---
 
@@ -26,6 +46,7 @@ These are not optional. Do not "simplify" them away.
 5. **Stack:** this Next.js repo + existing Postgres (`DATABASE_URL`). No separate Express app for v1.
 6. **ACCESS_CODE** is an optional site password, not user identity.
 7. Parent is a **mentor**: see progress, pending homework, deadlines; nudge the child. Parent does not take the student's classes.
+8. **Content is curriculum-scoped.** A student may only read material attached to their own curriculum level. Never leak another level's or another family's data.
 
 ---
 
@@ -34,9 +55,9 @@ These are not optional. Do not "simplify" them away.
 ```
 Public landing
 ├── Learn (students + parents)
-│   ├── Student: classroom, assignments, homework, holiday packages
+│   ├── Student: classroom, assignments, homework, read, practice
 │   └── Parent: children list, progress, pending work, mentor nudges
-└── School debate (schools only)
+└── School debate (schools only)          ← PARKED, see below
     ├── School profile
     ├── Roster (names/grades, no login)
     └── Matches / tournament (later)
@@ -46,96 +67,249 @@ A person who self-registers as a student for learning has **zero** relationship 
 
 ---
 
+## Target curriculum
+
+The seeded curriculum is the **Tanzania** national system: `primary` (Standard 1–7) →
+`secondary` (Form 1–4) → `a_level` (Form 5–6), seeded in `lib/academic/curriculum-seed.ts`.
+Subjects include Mathematics, English Language, Kiswahili, Science, Civics, Geography, History.
+
+Topic IDs follow the pattern `<form>-<subject>-<n>`, e.g. `std1-math-1`.
+
+---
+
 ## Implementation status
 
-Legend: `[ ]` not started · `[x]` done · `BLOCKED` waiting on earlier slice.
+Legend: `[ ]` not started · `[x]` done · `[~]` implemented but not yet tested · `BLOCKED` waiting on earlier slice.
 
-### Slice 0 — Identity, auth, dual worlds (CURRENT)
+### Slice 0 — Identity, auth, dual worlds — DONE
 
 Spec: `docs/superpowers/specs/2026-09-09-academic-hub-roles-design.md`
 
 - [x] Postgres tables: `users`, `parents`, `students`, `schools`, `school_roster`, `sessions`
-- [x] Password hashing (argon2 preferred) + httpOnly session cookie
+- [x] Password hashing (scrypt) + httpOnly session cookie
 - [x] Student-first registration (creates parent in one transaction)
 - [x] Parent-first registration (creates first student in one transaction)
 - [x] School registration (school user + school profile only)
 - [x] Login / logout
 - [x] Role-gated routes: `/learn/*`, `/parent/*`, `/school/*`
 - [x] Public landing: Learn vs School, copy never cross-leaks
-- [x] Student academic level on register (`primary` | `junior_secondary` | `senior_secondary` | `undergraduate` | `postgraduate` | `other`)
+- [x] Student academic level on register
 - [x] Parent: list children, add another child, progress stub
 - [x] School: roster CRUD (name, grade)
 - [x] Bind signed-in student id to learner partition (replace spoofable `x-learner-key`)
 - [x] Merge anonymous device `learnerKey` into account on first login
 - [x] Tests: family transaction, duplicate email, role 403, session expiry, header spoof
 
-**Done when:** a student, a parent with two children, and a school with a roster can all log in to the correct panel and cannot open the other world.
+**Done when:** a student, a parent with two children, and a school with a roster can all log in to the correct panel and cannot open the other world. — Verified.
 
-### Slice 1 — Assignments (e-learning)
+### Slice 1 — Assignments (e-learning) — DONE
 
-BLOCKED on Slice 0.
+Online assignments attached to a course. Student submits on the platform. Parent sees pending/complete.
 
-Online assignments generated or attached to a course. Student submits on the platform. Parent sees pending/complete.
+- [x] Assignment model: `title`, `topic_id`, `description`, `due_at`, `status`
+- [ ] `created_by` — deferred; v1 has no teacher role, so assignments are student-owned
+- [x] Student: list assignments, open, submit
+- [x] Parent: see child's assignments and status (`/api/academic/children/assignments`)
+- [x] Grade or auto-score — delivered by the quiz engine (`quiz.ts`: `submitAndGrade`, `gradeEssayAnswer`)
+- [x] Curriculum spine: `curriculum_levels → forms → subjects → topics`, seeded (~225 nodes)
+- [x] Tests: submit after due date, parent cannot submit as child, student cannot see sibling assignments
 
-- [ ] Assignment model: title, course/scene link, due_at, created_by (system or later teacher — v1 may be self-assigned from a course)
-- [ ] Student: list assignments, open, submit
-- [ ] Parent: see child's assignments and status
-- [ ] Grade or auto-score stub (quiz reuse from OpenMAIC if present)
-- [ ] Tests: submit after due date, parent cannot submit as child, student cannot see sibling assignments
+**Resolved open decision:** assignments are **self-started by the student** from their own
+curriculum topics, plus quiz-generated practice. No teacher role in v1.
 
-**Open decision (record here before coding):** who creates assignments in a student-only hub with no teacher? Options: auto from generated course; student self-starts a unit; later school/teacher role. Default until changed: **auto from the student's generated/imported courses.**
+**Verified 2026-09-12:** 22 tests in `tests/academic/assignment.test.ts` confirm the
+late-submission derivation (including a submission exactly at the due moment counting as on
+time), that a second submission is refused without overwriting the first timestamp, and that
+student / sibling / parent scoping holds.
 
-### Slice 2 — Homework
+### Slice 2 — Read (reading library) — DONE
 
-BLOCKED on Slice 1 (or can share assignment tables if implementation treats homework as an assignment type).
+Self-study material attached to curriculum topics. This is the pillar that had nothing under it.
 
-Regular homework with due dates and parent mentor view.
+- [x] Schema: `academic_readings` (topic-scoped content) + `academic_reading_progress` (per-student status)
+- [x] Reading kinds: `lesson_note` | `explainer` | `reference` | `past_paper` | `glossary`
+- [x] Domain module `lib/academic/reading.ts` with CRUD, student listing, progress, summary
+- [x] Student: library list scoped to their curriculum level, reader view, mark as read
+- [x] Progress states: `unread` → `reading` → `read`
+- [x] Parent: see each child's reading progress
+- [x] Seed a starter set of real lesson notes so the library is not empty (21 notes, all levels)
+- [x] Tests: level scoping, cross-student progress isolation, cross-family isolation, cascade delete
 
-- [ ] Homework vs assignment distinction (type flag or separate table — pick one in the slice spec)
-- [ ] Student submit + status (pending / submitted / late)
-- [ ] Parent pending-homework list and deadline visibility
-- [ ] Tests: parent sees pending only for their children
+**Done when:** a Standard 5 student opens `/learn/read`, sees only Standard 5 material, reads a
+note, marks it read, and their parent sees it as read — and no other student or family is affected. — Verified by 25 tests in `tests/academic/reading.test.ts`.
 
-### Slice 3 — Holiday packages + home recording
+**Endpoints:** `GET /api/academic/readings`, `GET /api/academic/readings/[id]`,
+`POST /api/academic/readings/[id]/progress`, `GET /api/academic/children/readings`.
 
-BLOCKED on Slice 2.
+**Follow-up noted:** readings are seeded content only. Generating readings from a course, and
+past-paper / glossary content types, are not built yet.
 
-Bundled holiday homework. Parts of the package require a **recorded home submission**.
+### Slice 3 — Homework — DONE
 
-- [ ] Holiday package: date range, list of homework items, which items require recording
-- [ ] Student: record/upload audio or video for required parts
-- [ ] Parent: see which recorded parts are missing; mentor nudge
-- [ ] Storage: use existing OpenMAIC media/persistence, scoped to the student account
-- [ ] Tests: package incomplete without required recordings; parent cannot watch another family's recordings
+Spec: `docs/superpowers/specs/2026-09-12-academic-hub-slice-3-homework.md`
 
-### Slice 4 — School 1v1 debate match (foundation for tournament)
+Homework is work that was **set for** the student, as opposed to an assignment they started
+themselves. It shares the assignment tables and the one submission lifecycle.
 
-BLOCKED on Slice 0. Independent of homework slices.
+- [x] **Decision — kind flag, not a separate table.** `academic_assignments` gains
+  `kind ('assignment' | 'homework')` and `assigned_by ('student' | 'platform')`, both additive
+  with defaults so existing rows stay valid.
+- [x] **Decision — the platform sets homework, from the student's curriculum form.** v1 has no
+  teacher role; the parent is a mentor, not the setter (rule 7); self-set homework collapses
+  into Slice 1. Materialised one item per topic in the student's form, due 7 days out.
+- [x] Schema: additive `kind` + `assigned_by` columns with constraints, plus a partial unique
+  index on `(student_id, topic_id) WHERE kind = 'homework'`
+- [x] Materialisation pass, idempotent per `(student_id, topic_id)` for homework
+- [x] Student: homework list bucketed into overdue / due soon / later
+- [x] Student: homework cannot be deleted (prescribed work is not theirs to remove)
+- [x] Parent: pending homework per own child, same buckets, deadlines visible
+- [x] Parent: pending view excludes submitted work
+- [x] Tests: idempotent materialisation, form scoping, cross-student and cross-family isolation,
+  late derivation on homework, delete refusal, Slice 1 suite still green
 
-Not a full tournament yet. One timed match: School A vs School B, pick a side, countdown, winner.
+**Done when:** a Standard 5 student opens their homework, sees work drawn from Standard 5 topics
+that they did not create and cannot delete, submits one on time and one late, and their parent
+sees exactly the still-pending items with the right deadlines — and no other student or family
+is affected. — Verified by 25 tests in `tests/academic/homework.test.ts`.
+
+**Endpoints:** `GET /api/academic/homework`, `GET /api/academic/children/homework`.
+Submission reuses `POST /api/academic/assignments/[id]/submit` — homework and assignments share
+one lifecycle rather than two.
+
+**Known limitation:** materialisation happens on first read of the homework list, so a student
+who never opens it accumulates nothing. Homework deadlines are also all 7 days from that first
+read rather than tied to a syllabus calendar. Both are acceptable for v1 and worth revisiting
+when Slice 5 (guidance) needs a real plan.
+
+**Dependency resolved 2026-09-12:** homework must be drawn from the student's grade, and the
+grade was not being stored at all. That is fixed (see below) before this slice began.
+
+### Slice 4 — Holiday packages + home recording
+
+DONE 2026-09-12. 27 tests in `tests/academic/holiday.test.ts`.
+Spec: `docs/superpowers/specs/2026-09-12-academic-hub-slice-4-holiday-packages.md`.
+
+- [x] Holiday package: date range, list of homework items, which items require recording
+- [x] Student: record/upload audio or video for required parts
+- [x] Parent: see which recorded parts are missing; mentor nudge
+- [x] Storage: **academic-owned tables, not the shared asset store** — see the decision below
+- [x] Tests: package incomplete without required recordings; parent cannot watch another family's recordings
+
+**Storage deviation (recorded 2026-09-12).** The line above originally said "existing OpenMAIC
+media/persistence, scoped to the student account". Investigating that layer showed it cannot
+meet this slice's own acceptance test: `PgAssetStore` partitions only on `principal.key`, and
+`lib/persistence/server-auth.ts` maps every caller to a single constant `shared` key, so one
+family's asset resolves for any other caller. `learnerKey` is carried on the principal but never
+read by the store. Recordings therefore live in `academic_recording_bytes` /
+`academic_recordings`, with an ownership check on every read. Revisit only when the dev
+authenticator is replaced with real per-user session verification.
+
+### Slice 5 — Guidance engine
+
+DONE 2026-09-12. 12 tests in `tests/academic/guidance.test.ts`.
+Spec: `docs/superpowers/specs/2026-09-12-academic-hub-slice-5-guidance-engine.md`.
+
+The map for the student journey. Today only the parent has any view; the student has none.
+
+- [x] Study plan: what to do today, derived from due work + unread material + **least-covered**
+      topics (renamed — see below)
+- [x] Student-facing progress view (not just parent-facing)
+- [x] "What next" recommendation across learn / practice / read
+- [x] Parent mentor nudges driven by the same data
+- [x] Tests: plan reflects only the signed-in student's own data
+
+**"Weak topics" renamed to "least covered" (2026-09-12).** Weakness is not measurable in this
+schema: `academic_quiz_questions` has no `topic_id`, and quizzes are school-owned while the
+school world is parked, so nothing records whether a student is bad at a topic. What *is*
+derivable is coverage — whether any work on a topic exists at all. The plan therefore surfaces
+*untouched* topics and never claims a topic is weak. The word "weak" does not appear in the
+output; a test asserts that.
+
+**Per-topic mastery is deferred, not dropped.** It needs two real changes first: a `topic_id` on
+`academic_quiz_questions`, and a practice engine that writes scores against it. That is a
+Practice-pillar slice. Until then the guidance engine reports coverage and says so.
+
+**No new tables.** The plan is derived on every read. A stored plan is a cache of four other
+tables and every write path would have to invalidate it; one miss tells a student to do work
+they already handed in.
+
+**Open question for the next slice:** nothing is currently planned after this one. The four
+pillars all have something under them now, so the next step is a product choice — deepen an
+existing pillar (a real practice engine is the loudest gap) or add something new.
+
+### Slice 6 — Practice drills + topic mastery
+
+Chosen 2026-09-12 as the next slice. Practice is the weakest pillar and the prerequisite for
+making Slice 5's "weak topics" real.
+
+- [x] Practice item bank tied to `curriculum_topics` (this is what makes a score attributable)
+- [x] Student: short drill per topic with immediate feedback
+- [x] Attempt history per student per item
+- [x] Mastery signal per topic: `weak` / `developing` / `strong`
+- [x] Guidance: real weak-topic steps, replacing coverage-only `untouched` where data exists
+- [x] Parent: see practice activity and weak topics
+- [x] Tests: mastery reflects only the signed-in student's own attempts
+
+**This slice is what retires Slice 5's "weak topics" caveat.** An attempt now names a topic, so
+a score means something and the plan can show a real `weak_topic` step. Slice 5's `untouched`
+coverage signal still applies to topics the bank does not cover, and a topic the student has
+drilled is no longer counted as untouched whatever their score.
+
+**The bank is partial by design and says so.** The curriculum has ~148 topics and 21 readings;
+authoring a full bank is a content project, not a slice. v1 ships Mathematics and Science
+drills — 33 topics, 66 items — and the UI only offers practice where items exist. Everything else
+still resolves through Slice 5's coverage signal. Do not present an empty state as "no practice
+needed".
+
+### Slice 7 — Content generation with a review gate
+
+Chosen 2026-09-12. Content depth is the loudest remaining gap: ~148 topics, 21 readings, 33
+practised. That is a content problem, not a code problem, so this slice builds the pipeline.
+
+- [ ] Generate a reading + practice items for topics that have neither
+- [ ] Strict validation of model output before anything is written
+- [ ] **Generated content lands unpublished and never reaches a student until published**
+- [ ] Review queue: list drafts, publish, discard
+- [ ] Admin routes guarded by the existing `ACCESS_CODE` token — no new role
+- [ ] Tests: malformed output is rejected; drafts are invisible to students; publish flips it
+
+**The review gate is not optional.** Unreviewed model output shown to children is a real risk
+for a tuition product, so drafts land with `published = false` and every student-facing read
+already filters on that flag. Publishing is an explicit operator action.
+
+**No teacher role is added.** The teacher role stays deferred; the existing site access token
+guards the pipeline instead. Revisit only if content review becomes a regular human job.
+
+**Open question after this:** with generation in place the coverage gap can actually be closed,
+so the next slice is likely operational — running the pipeline, reviewing output, and measuring
+quality — rather than more features.
+
+---
+
+## Parked
+
+Parked 2026-09-12. Keep the code and these entries; do not build. They serve none of the four
+pillars and compete for time with them.
+
+### Parked — School 1v1 debate match
+
+One timed match: School A vs School B, pick a side, countdown, winner.
 
 - [ ] School searches/challenges another school (or accepts an invite)
 - [ ] Match: topic, For/Against assignment, start/end time
 - [ ] Each school attaches roster members as the team for that match (still no student login)
-- [ ] Zoom room: school-handled. Platform stores meeting URL + host keys for the two school accounts only
-- [ ] In-match activities (questions / scores) that feed a winner calculation
+- [ ] Zoom room: platform stores meeting URL + host keys for the two school accounts only
+- [ ] In-match activities that feed a winner calculation
 - [ ] Winner recorded on the match
-- [ ] Hub students and parents have no routes, no UI, no API to this
 - [ ] Tests: third school cannot join a 1v1; hub student token 403s all debate APIs
 
-**Zoom note:** do not build Zoom OAuth until the match model exists. First version may be "paste Zoom join URL" per match. Native Zoom SDK/API is a sub-task of this slice, not a separate world.
+### Parked — Tournament bracket
 
-### Slice 5 — Tournament bracket
-
-BLOCKED on Slice 4.
-
-Wrap 1v1 matches in a season: schools enroll, system pairs, bracket advances winners.
-
-- [ ] Season / tournament entity
-- [ ] Enrollment
-- [ ] Pairing / bracket
-- [ ] Advance winner to next match
+- [ ] Season / tournament entity · enrollment · pairing · advance winner
 - [ ] Tests: bye handling, withdrawn school
+
+**Note on the two-world rule:** rule 1 stays in force even while debate is parked. Do not let
+hub code grow into debate paths, or the reverse.
 
 ---
 
@@ -154,11 +328,15 @@ Wrap 1v1 matches in a season: schools enroll, system pairs, bracket advances win
 ## Suggested build order
 
 ```
-Slice 0 (roles/auth) ──┬── Slice 1 (assignments) ── Slice 2 (homework) ── Slice 3 (holiday + recording)
-                       └── Slice 4 (1v1 debate) ── Slice 5 (tournament)
+Slice 0 (roles/auth) DONE
+   └── Slice 1 (assignments) DONE
+         └── Slice 2 (Read) DONE
+               └── Slice 3 (homework) DONE
+                     └── Slice 4 (holiday + recording) DONE
+                           └── Slice 5 (guidance engine) DONE
+                                 └── Slice 6 (practice + mastery) DONE
+                                       └── Slice 7 (content + review gate) <-- scoped, not started
 ```
-
-Homework line and debate line may proceed in parallel **after** Slice 0.
 
 ---
 
@@ -167,6 +345,7 @@ Homework line and debate line may proceed in parallel **after** Slice 0.
 - [ ] I read this roadmap and the current slice spec.
 - [ ] I did not implement a later slice.
 - [ ] I did not mix hub users into debate APIs (or the reverse).
+- [ ] Every new student-facing query is scoped by `student_id` or `parent_id`.
 - [ ] I updated checkboxes in this file to `[x]` only for work that is tested.
 - [ ] If I discovered a new product rule, I added it under Locked product rules or Deferred.
 
@@ -186,3 +365,22 @@ Homework line and debate line may proceed in parallel **after** Slice 0.
 | 2026-09-09 | Architecture A: features live in this OpenMAIC repo |
 | 2026-09-09 | v1 slice is identity only; other features tracked here as later slices |
 | 2026-09-11 | Slice 0 complete: all auth, routing, dashboards, and integration tests implemented |
+| 2026-09-12 | **North star restated:** online tuition platform — learn, practice, read, guidance across the student journey. Roadmap re-scoped to serve those four pillars. |
+| 2026-09-12 | **Read promoted to Slice 2** and made the current slice. It was the one pillar with nothing under it. Slices renumbered: homework 2→3, holiday 3→4. |
+| 2026-09-12 | **Debate parked** (was Slices 4–5). Serves none of the four pillars; revisit after the tuition pillars are real. |
+| 2026-09-12 | **Guidance engine added as Slice 5.** The student currently has no view of their own journey — only the parent does. |
+| 2026-09-12 | **Locked rule 8 added:** content is curriculum-scoped. A student may only read material attached to their own curriculum level. |
+| 2026-09-12 | **Holiday packages claim existing homework** rather than creating a second kind of work: a package is a date range plus a slice of the topics Slice 3 already materialised. |
+| 2026-09-12 | **Recordings stored in academic-owned tables.** The shared OpenMAIC asset store cannot enforce per-family isolation (single `shared` principal key), which this slice requires by its own test. Recorded as a deviation on Slice 4. |
+| 2026-09-12 | **A required recording gates submission** rather than being a display-only flag, so "incomplete without recordings" cannot drift out of sync. |
+| 2026-09-12 | **"Weak topics" renamed to "least covered".** No per-topic score exists (quiz questions have no `topic_id`; quizzes are school-owned). The plan reports coverage and never claims weakness — a test asserts the word never appears. |
+| 2026-09-12 | **The study plan is derived on read, never stored.** A stored plan is a cache of four tables needing invalidation on every write path. |
+| 2026-09-12 | **A plan is never empty.** A caught-up student gets a practice step rather than a blank screen; staleness changes the wording, not whether the step exists. |
+| 2026-09-12 | Target curriculum confirmed as Tanzania (Standard 1–7, Form 1–6). |
+| 2026-09-12 | Slice 1 marked implemented-not-tested. Assignments shipped without a test file; the late-submission SQL is unverified. |
+| 2026-09-12 | **Slice 1 closed.** 22 assignment tests added; late-submission derivation and student/sibling/parent scoping verified. Slices 0–2 are now complete and tested. |
+| 2026-09-12 | **Defect fixed: the student's grade was being discarded.** `app/register/student/page.tsx` collected `formLevel` (Standard 1–7 / Form 1–6) and posted it, but the register API dropped it and `academic_students` had no column for it. A Standard 5 student therefore saw Standard 1–7 content. Added nullable `curriculum_form_id`, validated against the chosen level, and re-scoped the reading library by form with a level-wide fallback for students registered before the fix. |
+| 2026-09-12 | The `senior_secondary` registration option offered Form 4, which belongs to the `secondary` level. Realigned to Form 5–6 to match the existing level mapping. |
+| 2026-09-12 | **Slice 3 decisions recorded** in `docs/superpowers/specs/2026-09-12-academic-hub-slice-3-homework.md`: homework is a `kind` flag on the assignment tables, and homework is set by the platform from the student's curriculum form rather than by the student or the parent. |
+| 2026-09-12 | `curriculum_form_id` lives in `ACADEMIC_SCHEMA` with no foreign key. Placing the migration in `CURRICULUM_SCHEMA` broke every Slice 0 test that runs `ensureAcademicSchema` alone, and an FK there cannot be added idempotently through the naive `;`-splitting migration runner. Curriculum forms are static seeded data, so the constraint buys little. |
+| 2026-09-12 | **Slice 3 complete.** Homework implemented as platform-set work materialised from the student's curriculum form, bucketed overdue / due soon / later, visible to the parent as pending-only. 25 tests added. Slices 0–3 are complete and tested (172 academic tests green). |

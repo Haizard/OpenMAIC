@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "lib/academic/**/*.ts",
+    "app/api/academic/**/*.ts",
+    "app/learn/**/*.tsx",
+    "app/parent/**/*.tsx",
+    "app/register/**/*.tsx",
+    "components/academic/**/*.tsx",
+    "tests/academic/**/*.ts",
+    "next-env.d.ts"
+  ]
+}

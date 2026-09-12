@@ -51,7 +51,6 @@ export default function StudentRegisterPage() {
       { value: 'form-3', label: 'Form 3' },
     ],
     senior_secondary: [
-      { value: 'form-4', label: 'Form 4' },
       { value: 'form-5', label: 'Form 5' },
       { value: 'form-6', label: 'Form 6' },
     ],

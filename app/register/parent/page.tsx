@@ -20,7 +20,41 @@ export default function ParentRegisterPage() {
     studentPassword: '',
     studentDisplayName: '',
     academicLevel: 'primary',
+    formLevel: 'standard-1',
   });
+
+  // Which forms belong to each level. Sent to the API so the student's grade is stored,
+  // not just their broad level.
+  const formsByLevel: Record<string, { value: string; label: string }[]> = {
+    primary: [
+      { value: 'standard-1', label: 'Standard 1' },
+      { value: 'standard-2', label: 'Standard 2' },
+      { value: 'standard-3', label: 'Standard 3' },
+      { value: 'standard-4', label: 'Standard 4' },
+      { value: 'standard-5', label: 'Standard 5' },
+      { value: 'standard-6', label: 'Standard 6' },
+      { value: 'standard-7', label: 'Standard 7' },
+    ],
+    secondary: [
+      { value: 'form-1', label: 'Form 1' },
+      { value: 'form-2', label: 'Form 2' },
+      { value: 'form-3', label: 'Form 3' },
+      { value: 'form-4', label: 'Form 4' },
+    ],
+    a_level: [
+      { value: 'form-5', label: 'Form 5' },
+      { value: 'form-6', label: 'Form 6' },
+    ],
+    junior_secondary: [
+      { value: 'form-1', label: 'Form 1' },
+      { value: 'form-2', label: 'Form 2' },
+      { value: 'form-3', label: 'Form 3' },
+    ],
+    senior_secondary: [
+      { value: 'form-5', label: 'Form 5' },
+      { value: 'form-6', label: 'Form 6' },
+    ],
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,7 +200,14 @@ export default function ParentRegisterPage() {
                 <select
                   id="academicLevel"
                   value={form.academicLevel}
-                  onChange={(e) => updateField('academicLevel', e.target.value)}
+                  onChange={(e) => {
+                    const level = e.target.value;
+                    setForm((prev) => ({
+                      ...prev,
+                      academicLevel: level,
+                      formLevel: formsByLevel[level]?.[0]?.value || '',
+                    }));
+                  }}
                   className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm"
                   required
                 >
@@ -177,6 +218,25 @@ export default function ParentRegisterPage() {
                   ))}
                 </select>
               </div>
+
+              {formsByLevel[form.academicLevel] && (
+                <div className="space-y-2">
+                  <Label htmlFor="formLevel">Form/Grade</Label>
+                  <select
+                    id="formLevel"
+                    value={form.formLevel}
+                    onChange={(e) => updateField('formLevel', e.target.value)}
+                    className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                    required
+                  >
+                    {formsByLevel[form.academicLevel].map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <Button type="submit" className="w-full" disabled={loading}>

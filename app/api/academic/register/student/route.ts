@@ -13,6 +13,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       studentPassword: body.studentPassword,
       studentDisplayName: body.studentDisplayName,
       academicLevel: body.academicLevel,
+      formLevel: body.formLevel,
       parentEmail: body.parentEmail,
       parentPassword: body.parentPassword,
       parentDisplayName: body.parentDisplayName,

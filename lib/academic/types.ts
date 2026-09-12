@@ -30,3 +30,15 @@ export function isUserRole(value: string): value is UserRole {
 export function isAcademicLevel(value: string): value is AcademicLevel {
   return (ACADEMIC_LEVELS as readonly string[]).includes(value);
 }
+
+/**
+ * Map a student's stored academic level to a curriculum level id.
+ * Legacy levels (`junior_secondary`, `senior_secondary`, …) fold into the current ones.
+ *
+ * The curriculum currently stops at A-level. University levels (`undergraduate`,
+ * `postgraduate`) and `other` therefore resolve to `a_level` — the closest real content —
+ * rather than dropping a university student into Standard 1.
+ */
+export function resolveCurriculumLevelId(academicLevel: string): string {
+  return LEVEL_MAPPING[academicLevel] ?? 'a_level';
+}

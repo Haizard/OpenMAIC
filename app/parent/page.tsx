@@ -6,14 +6,56 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ACADEMIC_LEVELS } from '@/lib/academic/types';
-import { GraduationCap, Plus, LogOut, User, FileQuestion } from 'lucide-react';
+import {
+  GraduationCap,
+  Plus,
+  LogOut,
+  User,
+  FileQuestion,
+  ClipboardList,
+  PartyPopper,
+  BellRing,
+} from 'lucide-react';
 
 interface Child {
   id: string;
   display_name: string;
   academic_level: string;
   email: string;
+  form_name: string | null;
+  form_slug: string | null;
 }
+
+const FORMS_BY_LEVEL: Record<string, { value: string; label: string }[]> = {
+  primary: [
+    { value: 'standard-1', label: 'Standard 1' },
+    { value: 'standard-2', label: 'Standard 2' },
+    { value: 'standard-3', label: 'Standard 3' },
+    { value: 'standard-4', label: 'Standard 4' },
+    { value: 'standard-5', label: 'Standard 5' },
+    { value: 'standard-6', label: 'Standard 6' },
+    { value: 'standard-7', label: 'Standard 7' },
+  ],
+  secondary: [
+    { value: 'form-1', label: 'Form 1' },
+    { value: 'form-2', label: 'Form 2' },
+    { value: 'form-3', label: 'Form 3' },
+    { value: 'form-4', label: 'Form 4' },
+  ],
+  a_level: [
+    { value: 'form-5', label: 'Form 5' },
+    { value: 'form-6', label: 'Form 6' },
+  ],
+  junior_secondary: [
+    { value: 'form-1', label: 'Form 1' },
+    { value: 'form-2', label: 'Form 2' },
+    { value: 'form-3', label: 'Form 3' },
+  ],
+  senior_secondary: [
+    { value: 'form-5', label: 'Form 5' },
+    { value: 'form-6', label: 'Form 6' },
+  ],
+};
 
 export default function ParentDashboard() {
   const router = useRouter();
@@ -27,6 +69,7 @@ export default function ParentDashboard() {
     studentPassword: '',
     studentDisplayName: '',
     academicLevel: 'primary',
+    formLevel: 'standard-1',
   });
 
   useEffect(() => {
@@ -76,6 +119,7 @@ export default function ParentDashboard() {
         studentPassword: '',
         studentDisplayName: '',
         academicLevel: 'primary',
+        formLevel: '',
       });
       await fetchChildren();
     } catch {
@@ -113,6 +157,18 @@ export default function ParentDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => router.push('/parent/homework')}>
+              <ClipboardList className="w-4 h-4 mr-2" />
+              Homework
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => router.push('/parent/nudges')}>
+              <BellRing className="w-4 h-4 mr-2" />
+              Nudges
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => router.push('/parent/holiday')}>
+              <PartyPopper className="w-4 h-4 mr-2" />
+              Holiday
+            </Button>
             <Button variant="outline" size="sm" onClick={() => router.push('/parent/quizzes')}>
               <FileQuestion className="w-4 h-4 mr-2" />
               Quiz Results
@@ -229,7 +285,14 @@ export default function ParentDashboard() {
                   <select
                     id="childLevel"
                     value={newChild.academicLevel}
-                    onChange={(e) => setNewChild((prev) => ({ ...prev, academicLevel: e.target.value }))}
+                    onChange={(e) => {
+                      const level = e.target.value;
+                      setNewChild((prev) => ({
+                        ...prev,
+                        academicLevel: level,
+                        formLevel: FORMS_BY_LEVEL[level]?.[0]?.value || '',
+                      }));
+                    }}
                     className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm"
                     required
                   >
@@ -240,6 +303,30 @@ export default function ParentDashboard() {
                     ))}
                   </select>
                 </div>
+
+                {FORMS_BY_LEVEL[newChild.academicLevel] && (
+                  <div className="space-y-2">
+                    <Label htmlFor="childForm">Form/Grade</Label>
+                    <select
+                      id="childForm"
+                      value={newChild.formLevel}
+                      onChange={(e) =>
+                        setNewChild((prev) => ({ ...prev, formLevel: e.target.value }))
+                      }
+                      className="w-full h-9 rounded-md border border-input bg-transparent px-3 text-sm"
+                      required
+                    >
+                      {FORMS_BY_LEVEL[newChild.academicLevel].map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      Homework and reading material are set from this class.
+                    </p>
+                  </div>
+                )}
 
                 <div className="flex gap-3">
                   <Button type="button" variant="outline" className="flex-1" onClick={() => setShowAddChild(false)}>

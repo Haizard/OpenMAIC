@@ -13,13 +13,23 @@ async function ensureSchemaIfNeeded(pool: Pool): Promise<void> {
       { ensureQuizSchema },
       { ensureCurriculumSchema },
       { ensureAssignmentSchema },
+      { ensureReadingSchema },
+      { ensureHolidaySchema },
+      { ensurePracticeSchema },
       { seedCurriculum },
+      { seedReadings },
+      { seedPracticeItems },
     ] = await Promise.all([
       import('@/lib/academic/schema'),
       import('@/lib/academic/quiz-schema'),
       import('@/lib/academic/curriculum-schema'),
       import('@/lib/academic/assignment-schema'),
+      import('@/lib/academic/reading-schema'),
+      import('@/lib/academic/holiday-schema'),
+      import('@/lib/academic/practice-schema'),
       import('@/lib/academic/curriculum-seed'),
+      import('@/lib/academic/reading-seed'),
+      import('@/lib/academic/practice-seed'),
     ]);
     const queryable = pool as unknown as import('@/lib/academic/schema').AcademicQueryable;
     await ensureAcademicSchema(queryable);
@@ -27,6 +37,14 @@ async function ensureSchemaIfNeeded(pool: Pool): Promise<void> {
     await ensureCurriculumSchema(queryable);
     await ensureAssignmentSchema(queryable);
     await seedCurriculum(queryable);
+    // Readings reference curriculum_topics, so the curriculum must be seeded first.
+    await ensureReadingSchema(queryable);
+    await seedReadings(queryable);
+    // Holiday columns attach to academic_assignments, so they come after it exists.
+    await ensureHolidaySchema(queryable);
+    // Practice items reference curriculum_topics, so the curriculum must be seeded first.
+    await ensurePracticeSchema(queryable);
+    await seedPracticeItems(queryable);
     schemaEnsured = true;
   } catch (error) {
     console.error('Failed to ensure academic schema:', error);

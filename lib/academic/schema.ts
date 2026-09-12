@@ -22,7 +22,8 @@ CREATE TABLE IF NOT EXISTS academic_students (
   user_id TEXT NOT NULL UNIQUE REFERENCES academic_users(id) ON DELETE CASCADE,
   parent_id TEXT NOT NULL REFERENCES academic_parents(id) ON DELETE RESTRICT,
   academic_level TEXT NOT NULL,
-  display_name TEXT NOT NULL
+  display_name TEXT NOT NULL,
+  curriculum_form_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS academic_schools (
@@ -49,6 +50,17 @@ CREATE TABLE IF NOT EXISTS academic_sessions (
 CREATE INDEX IF NOT EXISTS academic_students_parent_idx ON academic_students (parent_id);
 CREATE INDEX IF NOT EXISTS academic_roster_school_idx ON academic_school_roster (school_id);
 CREATE INDEX IF NOT EXISTS academic_sessions_user_idx ON academic_sessions (user_id);
+
+-- Which form (grade) the student is in, e.g. Standard 5 rather than just "primary".
+-- Nullable on purpose: students registered before this column existed keep working and fall
+-- back to level-wide content scoping. Deliberately no foreign key to curriculum_forms —
+-- that table is created by a later schema pass, and curriculum forms are static seeded
+-- reference data that is never deleted at runtime.
+ALTER TABLE academic_students
+  ADD COLUMN IF NOT EXISTS curriculum_form_id TEXT;
+
+CREATE INDEX IF NOT EXISTS academic_students_form_idx
+  ON academic_students (curriculum_form_id);
 `;
 
 function splitSqlStatements(sql: string): string[] {

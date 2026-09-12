@@ -236,7 +236,7 @@ describe('academic quiz system', () => {
     });
 
     it('saves answers and auto-grades correctly', async () => {
-      const { id: subId } = await startSubmission(pool, quizId, studentId);
+      const { id: subId } = (await startSubmission(pool, quizId, studentId))!;
       const questions = await listQuestions(pool, quizId);
 
       // Answer all three questions correctly
@@ -254,7 +254,7 @@ describe('academic quiz system', () => {
     });
 
     it('scores partial credit for wrong answers', async () => {
-      const { id: subId } = await startSubmission(pool, quizId, studentId);
+      const { id: subId } = (await startSubmission(pool, quizId, studentId))!;
       const questions = await listQuestions(pool, quizId);
 
       // Answer first correctly, second and third wrong
@@ -268,7 +268,7 @@ describe('academic quiz system', () => {
     });
 
     it('case-insensitive for fill_blank and MC answers', async () => {
-      const { id: subId } = await startSubmission(pool, quizId, studentId);
+      const { id: subId } = (await startSubmission(pool, quizId, studentId))!;
       const questions = await listQuestions(pool, quizId);
 
       await saveAnswer(pool, subId, questions[0]!.id, '4');
@@ -313,7 +313,7 @@ describe('academic quiz system', () => {
       );
       const studentId = student.rows[0]!.id;
 
-      const { id: subId } = await startSubmission(pool, quizId, studentId);
+      const { id: subId } = (await startSubmission(pool, quizId, studentId))!;
       const questions = await listQuestions(pool, quizId);
       await saveAnswer(pool, subId, questions[0]!.id, 'Photosynthesis converts light to energy...');
 
@@ -347,7 +347,7 @@ describe('academic quiz system', () => {
       );
       const studentId = student.rows[0]!.id;
 
-      const { id: subId } = await startSubmission(pool, quizId, studentId);
+      const { id: subId } = (await startSubmission(pool, quizId, studentId))!;
       await saveAnswer(pool, subId, qId, 'Photosynthesis converts light to energy...');
       await submitAndGrade(pool, subId);
 
@@ -401,7 +401,7 @@ describe('academic quiz system', () => {
       );
       const studentId = student.rows[0]!.id;
 
-      const { id: subId } = await startSubmission(pool, quizId, studentId);
+      const { id: subId } = (await startSubmission(pool, quizId, studentId))!;
       const questions = await listQuestions(pool, quizId);
       await saveAnswer(pool, subId, questions[0]!.id, '4');
       await saveAnswer(pool, subId, questions[1]!.id, 'Mass attracts mass...');

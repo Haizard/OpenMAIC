@@ -16,6 +16,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       studentPassword: body.studentPassword,
       studentDisplayName: body.studentDisplayName,
       academicLevel: body.academicLevel,
+      formLevel: body.formLevel,
     });
 
     return NextResponse.json({ success: true }, { status: 201 });

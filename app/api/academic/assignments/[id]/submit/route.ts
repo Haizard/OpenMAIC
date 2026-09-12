@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/academic/auth';
 import { getAcademicDb } from '@/lib/academic/db';
 import { submitAssignment } from '@/lib/academic/assignment';
+import { ValidationError } from '@/lib/academic/register';
 
 export async function POST(
   _request: Request,
@@ -28,6 +29,10 @@ export async function POST(
     }
     if (error instanceof Error && error.message === 'Forbidden') {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 });
+    }
+    // Slice 4: an item that must be answered out loud is refused until the take exists.
+    if (error instanceof ValidationError) {
+      return NextResponse.json({ success: false, error: error.message }, { status: 400 });
     }
     console.error('Submit assignment error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

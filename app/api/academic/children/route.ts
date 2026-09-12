@@ -10,9 +10,11 @@ export async function GET(): Promise<NextResponse> {
     const db = await getAcademicDb();
 
     const result = await db.query(
-      `SELECT s.id, s.display_name, s.academic_level, u.email
+      `SELECT s.id, s.display_name, s.academic_level, u.email,
+              f.name AS form_name, f.slug AS form_slug
        FROM academic_students s
        JOIN academic_users u ON u.id = s.user_id
+       LEFT JOIN curriculum_forms f ON f.id = s.curriculum_form_id
        WHERE s.parent_id = $1
        ORDER BY s.display_name`,
       [session.parentId],
@@ -55,6 +57,7 @@ export async function POST(request: Request): Promise<NextResponse> {
       studentPassword: body.studentPassword,
       studentDisplayName: body.studentDisplayName,
       academicLevel: body.academicLevel,
+      formLevel: body.formLevel,
     });
 
     return NextResponse.json({ success: true }, { status: 201 });

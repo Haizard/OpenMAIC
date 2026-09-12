@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
 import { hashPassword } from '@/lib/academic/password';
-import { isAcademicLevel, type AcademicLevel } from '@/lib/academic/types';
+import {
+  isAcademicLevel,
+  resolveCurriculumLevelId,
+  type AcademicLevel,
+} from '@/lib/academic/types';
 
 export interface AcademicDb {
   query: <TRow = unknown>(text: string, params?: unknown[]) => Promise<{ rows: TRow[] }>;
@@ -16,6 +20,8 @@ export interface StudentFirstInput {
   studentPassword: string;
   studentDisplayName: string;
   academicLevel: AcademicLevel;
+  /** Curriculum form slug, e.g. `standard-5` or `form-3`. Optional for backward compatibility. */
+  formLevel?: string;
   parentEmail: string;
   parentPassword: string;
   parentDisplayName: string;
@@ -29,6 +35,8 @@ export interface ParentFirstInput {
   studentPassword: string;
   studentDisplayName: string;
   academicLevel: AcademicLevel;
+  /** Curriculum form slug, e.g. `standard-5` or `form-3`. Optional for backward compatibility. */
+  formLevel?: string;
 }
 
 export interface SchoolRegisterInput {
@@ -44,6 +52,8 @@ export interface AddChildInput {
   studentPassword: string;
   studentDisplayName: string;
   academicLevel: AcademicLevel;
+  /** Curriculum form slug, e.g. `standard-5` or `form-3`. Optional for backward compatibility. */
+  formLevel?: string;
 }
 
 export class DuplicateEmailError extends Error {
@@ -80,6 +90,35 @@ function requirePassword(value: string, field: string): string {
 function requireLevel(value: string): AcademicLevel {
   if (!isAcademicLevel(value)) throw new ValidationError('Invalid academic level');
   return value;
+}
+
+/**
+ * Resolve a curriculum form slug (e.g. `standard-5`, `form-3`) to its row id, checking that
+ * the form actually belongs to the student's chosen level.
+ *
+ * Returns null when no form was supplied. That is not an error: students registered before
+ * grades were stored still exist, and they fall back to level-wide content scoping.
+ */
+async function resolveFormId(
+  db: AcademicDb,
+  formLevel: string | undefined,
+  academicLevel: AcademicLevel,
+): Promise<string | null> {
+  const slug = formLevel?.trim();
+  if (!slug) return null;
+
+  const result = await db.query<{ id: string; level_id: string }>(
+    'SELECT id, level_id FROM curriculum_forms WHERE slug = $1',
+    [slug],
+  );
+  const form = result.rows[0];
+  if (!form) throw new ValidationError(`Unknown form: ${slug}`);
+
+  const expectedLevel = resolveCurriculumLevelId(academicLevel);
+  if (form.level_id !== expectedLevel) {
+    throw new ValidationError(`Form ${slug} does not belong to level ${academicLevel}`);
+  }
+  return form.id;
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -157,6 +196,9 @@ export async function registerStudentFirst(
     throw new ValidationError('Valid emails are required');
   }
 
+  // Resolve the grade before opening a transaction, so a bad form fails fast with no writes.
+  const curriculumFormId = await resolveFormId(db, input.formLevel, academicLevel);
+
   try {
     return await withTransaction(db, async (query) => {
       const parentUserId = await insertUser(query, 'parent', parentEmail, parentPassword);
@@ -167,9 +209,10 @@ export async function registerStudentFirst(
       );
       const studentUserId = await insertUser(query, 'student', studentEmail, studentPassword);
       await query(
-        `INSERT INTO academic_students (id, user_id, parent_id, academic_level, display_name)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [randomUUID(), studentUserId, parentId, academicLevel, studentName],
+        `INSERT INTO academic_students
+           (id, user_id, parent_id, academic_level, display_name, curriculum_form_id)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [randomUUID(), studentUserId, parentId, academicLevel, studentName, curriculumFormId],
       );
       return { studentUserId, parentUserId };
     });
@@ -221,15 +264,25 @@ export async function addChild(
   if (!studentEmail.includes('@')) throw new ValidationError('Valid email is required');
   if (input.parentId.trim() === '') throw new ValidationError('Parent is required');
 
+  const curriculumFormId = await resolveFormId(db, input.formLevel, academicLevel);
+
   try {
     return await withTransaction(db, async (query) => {
       const parent = await query(`SELECT id FROM academic_parents WHERE id = $1`, [input.parentId]);
       if (parent.rows.length === 0) throw new ValidationError('Parent not found');
       const studentUserId = await insertUser(query, 'student', studentEmail, studentPassword);
       await query(
-        `INSERT INTO academic_students (id, user_id, parent_id, academic_level, display_name)
-         VALUES ($1, $2, $3, $4, $5)`,
-        [randomUUID(), studentUserId, input.parentId, academicLevel, studentName],
+        `INSERT INTO academic_students
+           (id, user_id, parent_id, academic_level, display_name, curriculum_form_id)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [
+          randomUUID(),
+          studentUserId,
+          input.parentId,
+          academicLevel,
+          studentName,
+          curriculumFormId,
+        ],
       );
       return { studentUserId };
     });
