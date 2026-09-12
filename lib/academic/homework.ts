@@ -1,4 +1,5 @@
 import type { AcademicDb } from '@/lib/academic/register';
+import { attachContentToHomework } from '@/lib/academic/delivery';
 import type { AssignmentStatus } from '@/lib/academic/assignment';
 
 /**
@@ -28,6 +29,8 @@ export interface HomeworkItem {
   topicId: string | null;
   topicName: string | null;
   subjectName: string | null;
+  /** Phase D: the bank item this work was drawn from, or null when none was published. */
+  contentItemId: string | null;
   status: AssignmentStatus;
   dueAt: Date | null;
   submittedAt: Date | null;
@@ -153,10 +156,13 @@ export async function listHomeworkForStudent(
   }
 
   await materializeHomework(db, studentId, now);
+  // Phase D: swap the topic blurb for the question the bank chose for this student, where the
+  // bank has one. Idempotent and gap-filling, so a topic with nothing published is untouched.
+  await attachContentToHomework(db, studentId);
 
   const result = await db.query<RawHomework>(
-    `SELECT h.id, h.title, h.description, h.topic_id, h.status, h.due_at, h.submitted_at,
-            t.name AS topic_name, sub.name AS subject_name
+    `SELECT h.id, h.title, h.description, h.topic_id, h.content_item_id, h.status, h.due_at,
+            h.submitted_at, t.name AS topic_name, sub.name AS subject_name
      FROM academic_assignments h
      LEFT JOIN curriculum_topics t ON t.id = h.topic_id
      LEFT JOIN curriculum_subjects sub ON sub.id = t.subject_id
@@ -217,6 +223,7 @@ interface RawHomework {
   title: string;
   description: string;
   topic_id: string | null;
+  content_item_id: string | null;
   status: string;
   due_at: Date | string | null;
   submitted_at: Date | string | null;
@@ -239,6 +246,7 @@ function mapHomeworkItem(row: RawHomework): HomeworkItem {
     title: row.title,
     description: row.description,
     topicId: row.topic_id,
+    contentItemId: row.content_item_id,
     topicName: row.topic_name,
     subjectName: row.subject_name,
     status: row.status as AssignmentStatus,

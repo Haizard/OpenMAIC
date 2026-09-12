@@ -21,7 +21,10 @@ CREATE TABLE IF NOT EXISTS academic_content_items (
   correct_index INTEGER,
   explanation TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'draft',
-  source_document_id TEXT REFERENCES academic_source_documents(id) ON DELETE SET NULL,
+  -- No foreign key, and that is deliberate. Source documents are retired, never deleted, so the
+  -- constraint buys nothing, while adding it forces every schema pass (and every test pool) to
+  -- create the source tables first. Same reasoning as curriculum_form_id and package_id.
+  source_document_id TEXT,
   source_chunk_ids JSONB NOT NULL DEFAULT '[]',
   model TEXT,
   generated_at TIMESTAMPTZ,

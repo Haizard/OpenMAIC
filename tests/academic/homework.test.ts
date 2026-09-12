@@ -6,6 +6,7 @@ import { ensureAcademicSchema } from '@/lib/academic/schema';
 import { ensureCurriculumSchema } from '@/lib/academic/curriculum-schema';
 import { seedCurriculum } from '@/lib/academic/curriculum-seed';
 import { ensureAssignmentSchema } from '@/lib/academic/assignment-schema';
+import { ensureContentSchema } from '@/lib/academic/content-schema';
 import {
   createAssignment,
   deleteAssignment,
@@ -97,6 +98,9 @@ describe('homework (Slice 3)', () => {
     await ensureCurriculumSchema(pool);
     await seedCurriculum(pool);
     await ensureAssignmentSchema(pool);
+    // Homework now consults the published content bank, so the table must exist even in tests
+    // that never generate anything.
+    await ensureContentSchema(pool);
 
     const family = await createFamily(pool, 'main', 'standard-5');
     studentId = family.studentId;

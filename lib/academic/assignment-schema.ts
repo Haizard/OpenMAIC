@@ -52,6 +52,14 @@ ALTER TABLE academic_assignments
   ADD COLUMN IF NOT EXISTS requires_recording BOOLEAN NOT NULL DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS academic_assignments_package_idx ON academic_assignments (package_id);
+
+-- Phase D: which published bank item this work was drawn from. Deliberately nullable and
+-- deliberately without a foreign key: homework materialised before anything was published, or
+-- for a topic with nothing published yet, has to keep working exactly as it did.
+ALTER TABLE academic_assignments ADD COLUMN IF NOT EXISTS content_item_id TEXT;
+
+CREATE INDEX IF NOT EXISTS academic_assignments_content_item_idx
+  ON academic_assignments (content_item_id);
 `;
 
 function splitSqlStatements(sql: string): string[] {
