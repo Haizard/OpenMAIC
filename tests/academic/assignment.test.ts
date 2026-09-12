@@ -6,6 +6,7 @@ import { ensureAcademicSchema } from '@/lib/academic/schema';
 import { ensureCurriculumSchema } from '@/lib/academic/curriculum-schema';
 import { seedCurriculum } from '@/lib/academic/curriculum-seed';
 import { ensureAssignmentSchema } from '@/lib/academic/assignment-schema';
+import { ensureContentSchema } from '@/lib/academic/content-schema';
 import {
   createAssignment,
   deleteAssignment,
@@ -66,6 +67,8 @@ describe('academic assignments (Slice 1)', () => {
     await ensureCurriculumSchema(pool);
     await seedCurriculum(pool);
     await ensureAssignmentSchema(pool);
+  // Homework and mastery both consult the shared content bank now.
+  await ensureContentSchema(pool);
 
     const family = await createFamily(pool, 'main');
     studentId = family.studentId;

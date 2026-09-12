@@ -7,6 +7,7 @@ import { ensureCurriculumSchema } from '@/lib/academic/curriculum-schema';
 import { seedCurriculum } from '@/lib/academic/curriculum-seed';
 import { ensureAssignmentSchema } from '@/lib/academic/assignment-schema';
 import { ensurePracticeSchema } from '@/lib/academic/practice-schema';
+import { ensureContentSchema } from '@/lib/academic/content-schema';
 import { seedPracticeItems } from '@/lib/academic/practice-seed';
 import {
   answerPracticeItem,
@@ -35,6 +36,9 @@ async function makePool(): Promise<PGlitePool> {
   await ensureCurriculumSchema(pool);
   await ensureAssignmentSchema(pool);
   await seedCurriculum(pool);
+  // Practice now looks in the shared bank first, so the table must exist even in tests that
+  // never generate anything.
+  await ensureContentSchema(pool);
   await ensurePracticeSchema(pool);
   await seedPracticeItems(pool);
   return pool;

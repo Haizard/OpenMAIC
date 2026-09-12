@@ -6,6 +6,7 @@ import { ensureAcademicSchema } from '@/lib/academic/schema';
 import { ensureCurriculumSchema } from '@/lib/academic/curriculum-schema';
 import { seedCurriculum } from '@/lib/academic/curriculum-seed';
 import { ensureAssignmentSchema } from '@/lib/academic/assignment-schema';
+import { ensureContentSchema } from '@/lib/academic/content-schema';
 import { ensureHolidaySchema } from '@/lib/academic/holiday-schema';
 import { materializeHomework } from '@/lib/academic/homework';
 import { submitAssignment } from '@/lib/academic/assignment';
@@ -43,6 +44,8 @@ async function makePool(): Promise<PGlitePool> {
   await ensureAcademicSchema(pool);
   await ensureCurriculumSchema(pool);
   await ensureAssignmentSchema(pool);
+  // Homework and mastery both consult the shared content bank now.
+  await ensureContentSchema(pool);
   await seedCurriculum(pool);
   await ensureHolidaySchema(pool);
   return pool;

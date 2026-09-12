@@ -37,6 +37,21 @@ CREATE INDEX IF NOT EXISTS academic_practice_attempts_student_idx
 
 CREATE INDEX IF NOT EXISTS academic_practice_attempts_item_idx
   ON academic_practice_attempts (item_id);
+
+-- Phase D: an attempt now names either a hand-authored drill or a generated bank item. Both
+-- carry a topic, which is the only thing mastery actually needs.
+ALTER TABLE academic_practice_attempts ALTER COLUMN item_id DROP NOT NULL;
+
+-- The foreign key goes for the same reason as the other ones in this codebase: neither kind of
+-- item is ever deleted, so the constraint buys nothing, and a second source of items cannot be
+-- recorded while it stands. DROP CONSTRAINT IF EXISTS keeps this idempotent.
+ALTER TABLE academic_practice_attempts
+  DROP CONSTRAINT IF EXISTS academic_practice_attempts_item_id_fkey;
+
+ALTER TABLE academic_practice_attempts ADD COLUMN IF NOT EXISTS content_item_id TEXT;
+
+CREATE INDEX IF NOT EXISTS academic_practice_attempts_content_item_idx
+  ON academic_practice_attempts (content_item_id);
 `;
 
 function splitSqlStatements(sql: string): string[] {

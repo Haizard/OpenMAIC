@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { AcademicDb } from '@/lib/academic/register';
 import { ValidationError } from '@/lib/academic/register';
+import { choiceOrderFor, selectContentSet, seedFor } from '@/lib/academic/delivery';
 
 /**
  * Practice drills and topic mastery — Slice 6.
@@ -17,6 +18,8 @@ import { ValidationError } from '@/lib/academic/register';
 export const MIN_ATTEMPTS_FOR_MASTERY = 4;
 /** How many recent attempts mastery is computed over. */
 export const MASTERY_WINDOW = 10;
+/** Cap on how many items a single drill hands out from the bank. */
+export const MAX_PRACTICE_ITEMS = 10;
 
 export type MasteryLabel = 'unknown' | 'weak' | 'developing' | 'strong';
 
@@ -70,6 +73,32 @@ export async function listPracticeItems(
 ): Promise<PracticeItem[]> {
   await assertTopicInScope(db, studentId, topicId);
 
+  // Phase D: the shared bank first. Each student gets the items in their own order and the
+  // choices in their own order, both derived from their id, so the same drill looks different
+  // to every student in the class without storing a permutation anywhere.
+  const fromBank = await selectContentSet(db, {
+    studentId,
+    kind: 'practice',
+    setKey: topicId,
+    topicId,
+    count: MAX_PRACTICE_ITEMS,
+  });
+
+  if (fromBank.length > 0) {
+    return fromBank.map((item, index) => {
+      const order = choiceOrderFor(item.choices?.length ?? 0, seedFor(studentId, item.id));
+      return {
+        id: item.id,
+        topicId: item.topicId ?? topicId,
+        prompt: item.prompt,
+        choices: order.map((trueIndex) => item.choices?.[trueIndex] ?? ''),
+        sortOrder: index,
+      };
+    });
+  }
+
+  // Nothing published for this topic: fall back to the hand-authored bank, which is what this
+  // function has always served.
   const result = await db.query<RawItem>(
     `SELECT id, topic_id, prompt, choices, sort_order
      FROM academic_practice_items
@@ -79,6 +108,63 @@ export async function listPracticeItems(
   );
 
   return result.rows.map(mapItem);
+}
+
+/**
+ * Grade an answer to a generated bank item.
+ *
+ * The index the student clicked is a *display* index: the choices were reshuffled for them, so
+ * it has to be mapped back through the same seed before it means anything. Returns null when
+ * the id is not a published practice item, so the caller can fall through to the other bank.
+ */
+async function answerBankItem(
+  db: AcademicDb,
+  studentId: string,
+  itemId: string,
+  choiceIndex: number,
+): Promise<AnswerResult | null> {
+  const result = await db.query<{
+    id: string;
+    topic_id: string | null;
+    choices: string[] | string;
+    correct_index: number | null;
+    explanation: string;
+  }>(
+    `SELECT id, topic_id, choices, correct_index, explanation
+     FROM academic_content_items
+     WHERE id = $1 AND kind = 'practice' AND status = 'published'`,
+    [itemId],
+  );
+
+  const row = result.rows[0];
+  if (!row || !row.topic_id) return null;
+
+  await assertTopicInScope(db, studentId, row.topic_id);
+
+  if (!Number.isInteger(choiceIndex) || choiceIndex < 0) {
+    throw new ValidationError('Choose one of the answers');
+  }
+
+  const choices = parseChoices(row.choices);
+  if (choiceIndex >= choices.length) {
+    throw new ValidationError('Choose one of the answers');
+  }
+
+  const order = choiceOrderFor(choices.length, seedFor(studentId, itemId));
+  const trueIndex = order[choiceIndex] ?? null;
+  const correct = trueIndex !== null && trueIndex === row.correct_index;
+
+  await db.query(
+    `INSERT INTO academic_practice_attempts (id, student_id, content_item_id, correct)
+     VALUES ($1, $2, $3, $4)`,
+    [randomUUID(), studentId, itemId, correct],
+  );
+
+  return {
+    correct,
+    correctIndex: row.correct_index === null ? -1 : order.indexOf(row.correct_index),
+    explanation: row.explanation,
+  };
 }
 
 /**
@@ -102,6 +188,8 @@ export async function answerPracticeItem(
 
   const row = item.rows[0];
   if (!row) {
+    const fromBank = await answerBankItem(db, studentId, itemId, choiceIndex);
+    if (fromBank) return fromBank;
     throw new ValidationError('That practice item is not available');
   }
 
@@ -159,26 +247,52 @@ export async function listTopicMastery(
   db: AcademicDb,
   studentId: string,
 ): Promise<TopicMastery[]> {
+  // An attempt names a topic through whichever bank the item came from. Both are resolved to a
+  // topic id here, so mastery does not care where the question was authored.
   const result = await db.query<RawMastery>(
-    `SELECT t.id AS topic_id, t.name AS topic_name, sub.name AS subject_name,
-            COUNT(a.id)::int AS attempts,
-            COALESCE(SUM(CASE WHEN a.correct THEN 1 ELSE 0 END), 0)::int AS correct,
-            COUNT(i.id) AS item_count
+    `WITH resolved AS (
+       SELECT COALESCE(pi.topic_id, ci.topic_id) AS topic_id,
+              a.correct,
+              ROW_NUMBER() OVER (
+                PARTITION BY COALESCE(pi.topic_id, ci.topic_id)
+                ORDER BY a.answered_at DESC
+              ) AS recency
+       FROM academic_practice_attempts a
+       LEFT JOIN academic_practice_items pi ON pi.id = a.item_id
+       LEFT JOIN academic_content_items ci ON ci.id = a.content_item_id
+       WHERE a.student_id = $1
+     ),
+     recent AS (
+       SELECT topic_id, correct FROM resolved WHERE recency <= $2
+     ),
+     counts AS (
+       SELECT topic_id,
+              COUNT(*)::int AS attempts,
+              COUNT(*) FILTER (WHERE correct)::int AS correct
+       FROM recent
+       GROUP BY topic_id
+     ),
+     available AS (
+       SELECT topic_id, COUNT(*)::int AS item_count FROM (
+         SELECT topic_id FROM academic_practice_items WHERE published = TRUE
+         UNION ALL
+         SELECT topic_id FROM academic_content_items
+           WHERE status = 'published' AND kind = 'practice' AND topic_id IS NOT NULL
+       ) both_banks
+       GROUP BY topic_id
+     )
+     SELECT t.id AS topic_id, t.name AS topic_name, sub.name AS subject_name,
+            COALESCE(c.attempts, 0)::int AS attempts,
+            COALESCE(c.correct, 0)::int AS correct,
+            COALESCE(av.item_count, 0)::int AS item_count
      FROM academic_students s
      JOIN curriculum_subjects sub ON sub.form_id = s.curriculum_form_id
      JOIN curriculum_topics t ON t.subject_id = sub.id
-     JOIN academic_practice_items i ON i.topic_id = t.id AND i.published = TRUE
-     LEFT JOIN LATERAL (
-       SELECT a.id, a.correct
-       FROM academic_practice_attempts a
-       WHERE a.student_id = s.id AND a.item_id = i.id
-       ORDER BY a.answered_at DESC
-       LIMIT ${MASTERY_WINDOW}
-     ) a ON TRUE
-     WHERE s.id = $1
-     GROUP BY t.id, t.name, t.sort_order, sub.name, sub.sort_order
+     LEFT JOIN counts c ON c.topic_id = t.id
+     LEFT JOIN available av ON av.topic_id = t.id
+     WHERE s.id = $1 AND COALESCE(av.item_count, 0) > 0
      ORDER BY sub.sort_order, sub.name, t.sort_order, t.name`,
-    [studentId],
+    [studentId, MASTERY_WINDOW],
   );
 
   return result.rows.map((row) => {
