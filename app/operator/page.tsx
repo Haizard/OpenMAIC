@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, Upload } from 'lucide-react';
+import { ArrowLeft, Bot, Loader2, Upload } from 'lucide-react';
 
 /**
  * The operator console — the single place content enters the platform.
@@ -32,6 +32,29 @@ interface CoverageRow {
 interface TopicRef {
   id: string;
   name: string;
+}
+
+interface AgentWorkItem {
+  subjectId: string;
+  subjectName: string;
+  topicId: string;
+  topicName: string;
+  kind: string;
+  haveItems: number;
+  wantItems: number;
+}
+
+interface AgentRunRecord {
+  id: string;
+  subjectId: string;
+  subjectName: string | null;
+  topicId: string;
+  topicName: string | null;
+  kind: string;
+  status: string;
+  itemCount: number;
+  message: string | null;
+  createdAt: string;
 }
 
 interface ContentCoverageRow {
@@ -90,6 +113,11 @@ export default function OperatorPage() {
   const [reviewMessage, setReviewMessage] = useState<string | null>(null);
   const [contentCoverage, setContentCoverage] = useState<ContentCoverageRow[]>([]);
 
+  const [agentPlan, setAgentPlan] = useState<AgentWorkItem[]>([]);
+  const [agentRuns, setAgentRuns] = useState<AgentRunRecord[]>([]);
+  const [agentRunning, setAgentRunning] = useState(false);
+  const [agentMessage, setAgentMessage] = useState<string | null>(null);
+
   useEffect(() => {
     const stored = window.localStorage.getItem(TOKEN_KEY);
     if (stored) {
@@ -147,6 +175,55 @@ export default function OperatorPage() {
     if (tokenReady && token) void loadDrafts(token);
   }, [tokenReady, token, loadDrafts]);
 
+  const loadAgent = useCallback(async (activeToken: string) => {
+    const response = await fetch('/api/academic/operator/agent', {
+      headers: { 'x-academic-operator-token': activeToken },
+    });
+    const data = await response.json();
+    if (data.success) {
+      setAgentPlan(data.plan as AgentWorkItem[]);
+      setAgentRuns(data.runs as AgentRunRecord[]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tokenReady && token) void loadAgent(token);
+  }, [tokenReady, token, loadAgent]);
+
+  const startAgent = async () => {
+    setError(null);
+    setAgentMessage(null);
+    setAgentRunning(true);
+    try {
+      const response = await fetch('/api/academic/operator/agent', {
+        method: 'POST',
+        headers: {
+          'x-academic-operator-token': token,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({}),
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.error ?? 'The agent run failed');
+        return;
+      }
+      setAgentMessage(
+        data.attempted === 0
+          ? 'Nothing to do — every topic with a book already has enough.'
+          : `${data.generated} drafts across ${data.attempted} topic${
+              data.attempted === 1 ? '' : 's'
+            }${data.failed > 0 ? `, ${data.failed} failed` : ''}. Review them below.`,
+      );
+      await loadAgent(token);
+      await loadDrafts(token);
+    } catch {
+      setError('The agent run failed');
+    } finally {
+      setAgentRunning(false);
+    }
+  };
+
   useEffect(() => {
     if (!tokenReady || !token || !genSubject) {
       setTopics([]);
@@ -189,6 +266,7 @@ export default function OperatorPage() {
       }
       setReviewMessage(`${data.items.length} drafts generated. Review them below.`);
       await loadDrafts(token);
+      await loadAgent(token);
     } catch {
       setError('Generation failed');
     } finally {
@@ -504,6 +582,92 @@ export default function OperatorPage() {
             </Button>
           </div>
         </form>
+      </section>
+
+      <section className="mb-8 rounded-lg border p-4">
+        <div className="mb-3 flex items-start justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-medium">Operator agent</h2>
+            <p className="text-sm text-muted-foreground">
+              Finds the topics with too little in the bank and fills them from the uploaded book.
+              It writes drafts only — publishing stays yours.
+            </p>
+          </div>
+          <Button onClick={startAgent} disabled={agentRunning}>
+            {agentRunning ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Bot className="mr-2 h-4 w-4" />
+            )}
+            {agentRunning ? 'Working…' : 'Run the agent'}
+          </Button>
+        </div>
+
+        {agentMessage ? <p className="mb-3 text-sm text-emerald-700">{agentMessage}</p> : null}
+
+        <h3 className="mb-2 text-sm font-medium">Next up ({agentPlan.length})</h3>
+        {agentPlan.length === 0 ? (
+          <p className="mb-4 text-sm text-muted-foreground">
+            Nothing to generate: either no book is uploaded yet, or every topic that has one
+            already holds enough.
+          </p>
+        ) : (
+          <ul className="mb-4 flex flex-col gap-1 text-sm">
+            {agentPlan.slice(0, 6).map((item) => (
+              <li
+                key={`${item.topicId}:${item.kind}`}
+                className="flex justify-between gap-3 border-b py-1 last:border-0"
+              >
+                <span>
+                  {item.subjectName} · {item.topicName}
+                </span>
+                <span className="text-muted-foreground">
+                  {item.kind} · has {item.haveItems}, wants {item.wantItems}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <h3 className="mb-2 text-sm font-medium">Recent attempts</h3>
+        {agentRuns.length === 0 ? (
+          <p className="text-sm text-muted-foreground">The agent has not run yet.</p>
+        ) : (
+          <div className="overflow-x-auto rounded-md border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-left">
+                <tr>
+                  <th className="px-3 py-2">Subject</th>
+                  <th className="px-3 py-2">Topic</th>
+                  <th className="px-3 py-2">Kind</th>
+                  <th className="px-3 py-2">Result</th>
+                  <th className="px-3 py-2 text-right">Items</th>
+                  <th className="px-3 py-2">Detail</th>
+                </tr>
+              </thead>
+              <tbody>
+                {agentRuns.map((run) => (
+                  <tr key={run.id} className="border-t">
+                    <td className="px-3 py-2">{run.subjectName ?? run.subjectId}</td>
+                    <td className="px-3 py-2">{run.topicName ?? run.topicId}</td>
+                    <td className="px-3 py-2">{run.kind}</td>
+                    <td className="px-3 py-2">
+                      <span
+                        className={
+                          run.status === 'failed' ? 'text-destructive' : 'text-emerald-700'
+                        }
+                      >
+                        {run.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right">{run.itemCount}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{run.message ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       <section className="mb-8 rounded-lg border p-4">

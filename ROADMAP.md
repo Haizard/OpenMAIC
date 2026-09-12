@@ -12,13 +12,18 @@ This file is the coding-agent contract for turning OpenMAIC into an academic pro
 6. New features discussed in chat must be added here before implementation.
 
 **Product status:** Slices 0–6 complete and tested (227 tests, commit 09eb44d). The AI content
-platform is built through **A (ingest), B (generation), C (review), E (quality loop)** and **D for
-homework** — 315 academic tests green. **None of it is pushed: the push needs Haitham's
-credentials.**
+platform is built through **A (ingest), B (generation), C (review), D (delivery), E (quality
+loop)** and **F (the operator agent)** — 350 academic tests green. **None of it is pushed: the
+push needs Haitham's credentials.**
 
-**Phase D is complete.** Homework, holiday packages and practice all draw from the shared bank
-with per-student mixing, and every one of them falls back to what it did before when the bank
-has nothing published for that topic. The AI content platform is now end to end.
+**Phases D and F are complete.** Homework, holiday packages and practice all draw from the shared
+bank with per-student mixing, and every one of them falls back to what it did before when the bank
+has nothing published for that topic. Upload a book and the agent fills the bank for its topics on
+its own. The AI content platform is now end to end.
+
+**The one hole left in it is quizzes.** `/learn/quizzes` still reads the Slice 1
+`academic_quizzes` table, which only a teacher could fill — and there is no teacher. The bank can
+already generate `quiz` items; nothing serves them. See Phase G.
 
 **Nothing is on `origin/main`.** Six commits sit local — the push needs Haitham's credentials.
 
@@ -389,6 +394,58 @@ Nothing is stored to remember the shuffle. Both the set and the choice order are
 `seed = hash(studentId, key)`, so grading recomputes the permutation instead of trusting the
 client. `attachContentToHomework` is gap-filling and idempotent: it only fills nulls, so a
 question a student has already been given is never swapped underneath them.
+
+### Phase F — The operator agent — DONE 2026-09-12
+
+Phases A–E gave Haitham a console. A console is a tool, not an operator: the bank still only
+grows when he clicks *generate* topic by topic, and a new book does nothing until he walks its
+topics one at a time. Phase F closes that loop — upload a book and the AI fills the bank.
+
+- [x] `planAgentWork` — the next things worth generating: topics whose live bank is under
+      `AGENT_TARGET_ITEMS_PER_TOPIC`, whose subject has enough source, and whose last attempt is
+      outside the retry cooldown
+- [x] `runAgent` — generate for up to `AGENT_MAX_TOPICS_PER_RUN` of them, one (topic, kind) at a time
+- [x] `academic_agent_runs` — an audit log of every attempt and its outcome, so "what did the AI
+      do while I was away" is an answerable question
+- [x] `POST /api/academic/operator/agent/run`, `GET /api/academic/operator/agent` — run it, and
+      read the plan plus the recent attempts
+- [x] Operator console shows what the agent will do next and what it last did
+- [x] Tests: covers an ungenerated subject after upload; skips blocked subjects; skips a topic
+      that failed recently; stops at the run cap; logs every attempt (15 tests)
+
+Deliberate calls:
+
+- **Work is computed, not queued.** A pending-work table goes stale exactly like the stored
+  blockers would: a topic queued before an upload would still be queued after it, and a queue is
+  one more thing to drain. Coverage is a query, so the plan is always true now.
+- **The agent generates drafts; it does not publish.** Rule 11 keeps a human on quality. An
+  auto-published wrong answer gets taught to a child before anyone reads it. Publishing stays
+  Haitham's click until he says otherwise.
+- **Only `homework` and `practice` by default** — those are the kinds students actually pull.
+  `quiz` items can be generated but have no consumer yet: the online-quiz surface named in the
+  Practice pillar is still the `/learn/quizzes` stub. Generating quiz stock nobody serves is waste.
+- **The cooldown is retry backoff, and only for failures.** A topic that failed is not retried
+  within `AGENT_RETRY_COOLDOWN_MS`, so one broken subject cannot burn the whole run's budget on
+  repeats. A topic that succeeded is gated by coverage instead, so uploading a book for a
+  previously-thin subject takes effect immediately rather than after a cooldown.
+- **One topic's failure does not stop the run.** Each attempt is logged and the run continues; a
+  single bad generation should not cost Haitham the other nine.
+
+### Phase G — Re-point quizzes at the bank — NOT STARTED
+
+Found while building Phase F, not requested separately. `/learn/quizzes` and its two pages read
+`academic_quizzes`, a Slice 1 table whose rows were authored by a teacher. Rule 9 removed the
+teacher, so **nothing can ever fill that table again** — the quiz surface is live code with no
+possible content. Meanwhile the bank already generates `quiz` items that nobody serves, and
+"online quize" is one of the three things Haitham asked the AI to produce.
+
+This is Phase D applied a third time: consult the bank, keep today's behaviour as the fallback.
+
+- [ ] Serve bank `quiz` items through the quiz list, per student, with the usual mixing
+- [ ] Run a quiz: answer, score, and review — scored from the seed, not from the client
+- [ ] The agent should stock `quiz` once something consumes it (move it into `AGENT_KINDS`)
+- [ ] Decide what happens to `academic_quizzes`: it is dead weight under rule 9, but deleting it
+      loses the submission history, so this needs a decision before it needs code
 
 ---
 

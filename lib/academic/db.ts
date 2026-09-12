@@ -17,6 +17,7 @@ async function ensureSchemaIfNeeded(pool: Pool): Promise<void> {
       { ensureHolidaySchema },
       { ensureSourceSchema },
       { ensureContentSchema },
+      { ensureAgentSchema },
       { ensurePracticeSchema },
       { seedCurriculum },
       { seedReadings },
@@ -30,6 +31,7 @@ async function ensureSchemaIfNeeded(pool: Pool): Promise<void> {
       import('@/lib/academic/holiday-schema'),
       import('@/lib/academic/source-schema'),
       import('@/lib/academic/content-schema'),
+      import('@/lib/academic/agent-schema'),
       import('@/lib/academic/practice-schema'),
       import('@/lib/academic/curriculum-seed'),
       import('@/lib/academic/reading-seed'),
@@ -51,6 +53,9 @@ async function ensureSchemaIfNeeded(pool: Pool): Promise<void> {
     // Content items reference curriculum subjects, topics and source documents, so they come
     // after all three.
     await ensureContentSchema(queryable);
+    // The agent log only records attempts against existing subjects and topics, so it comes
+    // after the content bank it tops up.
+    await ensureAgentSchema(queryable);
     // Practice items reference curriculum_topics, so the curriculum must be seeded first.
     await ensurePracticeSchema(queryable);
     await seedPracticeItems(queryable);
