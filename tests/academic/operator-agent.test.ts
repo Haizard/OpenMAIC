@@ -6,14 +6,17 @@ import { ensureCurriculumSchema } from '@/lib/academic/curriculum-schema';
 import { seedCurriculum } from '@/lib/academic/curriculum-seed';
 import { ensureSourceSchema } from '@/lib/academic/source-schema';
 import { ensureContentSchema } from '@/lib/academic/content-schema';
+import { ensureReadingSchema } from '@/lib/academic/reading-schema';
 import { ensureAgentSchema } from '@/lib/academic/agent-schema';
 import { ingestSourceDocument } from '@/lib/academic/source';
 import type { SourcePage } from '@/lib/academic/source-chunk';
 import { listContentItems, publishContentItem } from '@/lib/academic/content-bank';
+import { listGeneratedReadings } from '@/lib/academic/reading-gen';
 import {
-  AGENT_KINDS,
   AGENT_MAX_TOPICS_PER_RUN,
+  AGENT_READING_KIND,
   AGENT_TARGET_ITEMS_PER_TOPIC,
+  DEFAULT_AGENT_KINDS,
   listAgentRuns,
   planAgentWork,
   runAgent,
@@ -60,6 +63,20 @@ function llmReturning(raw: string): (prompt: string) => Promise<string> {
   return async () => raw;
 }
 
+function validPassage(): string {
+  return JSON.stringify({
+    title: 'Fractions',
+    summary: 'What a fraction names.',
+    body: 'A fraction names equal parts of a whole, and the denominator counts them. '.repeat(12),
+    readingMinutes: 4,
+  });
+}
+
+/** A model that returns a reading passage instead of questions. */
+function llmReturningPassage(): (prompt: string) => Promise<string> {
+  return async () => validPassage();
+}
+
 /** Fails the first `failures` calls, then behaves normally. */
 function llmFailingFirst(failures: number, raw = validModelOutput(2)) {
   let calls = 0;
@@ -92,6 +109,7 @@ beforeEach(async () => {
   await ensureCurriculumSchema(pool);
   await seedCurriculum(pool);
   await ensureSourceSchema(pool);
+  await ensureReadingSchema(pool);
   await ensureContentSchema(pool);
   await ensureAgentSchema(pool);
 });
@@ -115,11 +133,39 @@ describe('planAgentWork', () => {
       pages: sourcePages(),
     });
 
-    const plan = await planAgentWork(pool);
+    const plan = await planAgentWork(pool, { limit: 200 });
     expect(plan.length).toBeGreaterThan(0);
-    // Every kind the agent stocks, for every topic in the subject.
-    expect(plan.length).toBe((await topicCount()) * AGENT_KINDS.length);
+    // Every kind the agent stocks, for every topic in the subject — questions and passages both.
+    expect(plan.length).toBe((await topicCount()) * DEFAULT_AGENT_KINDS.length);
     expect(plan.every((item) => item.subjectId === SUBJECT_ID)).toBe(true);
+  });
+
+  it('plans a reading passage for every topic, not just questions', async () => {
+    await ingestSourceDocument(pool, {
+      formId: 'std5',
+      subjectId: SUBJECT_ID,
+      title: 'Primary Mathematics 5',
+      pages: sourcePages(),
+    });
+
+    const readings = (await planAgentWork(pool, { limit: 200 })).filter(
+      (item) => item.kind === AGENT_READING_KIND,
+    );
+    expect(readings).toHaveLength(await topicCount());
+  });
+
+  it('stops planning a passage once a topic has one', async () => {
+    await ingestSourceDocument(pool, {
+      formId: 'std5',
+      subjectId: SUBJECT_ID,
+      title: 'Primary Mathematics 5',
+      pages: sourcePages(),
+    });
+
+    await runAgent(pool, { llm: llmReturningPassage(), kinds: ['reading'], limit: 1 });
+
+    const stillWork = await planAgentWork(pool, { kinds: ['reading'], limit: 200 });
+    expect(stillWork.filter((item) => item.topicId === 'std5-math-1')).toEqual([]);
   });
 
   it('stops planning a topic once it has enough live items', async () => {
@@ -366,5 +412,64 @@ describe('runAgent', () => {
     const publishedAfter = await listContentItems(pool, { status: 'published' });
 
     expect(publishedAfter.map((item) => item.id)).toEqual(publishedBefore.map((item) => item.id));
+  });
+
+  it('writes reading passages and counts them apart from questions', async () => {
+    await ingestSourceDocument(pool, {
+      formId: 'std5',
+      subjectId: SUBJECT_ID,
+      title: 'Primary Mathematics 5',
+      pages: sourcePages(),
+    });
+
+    const summary = await runAgent(pool, {
+      llm: llmReturningPassage(),
+      kinds: ['reading'],
+      limit: 2,
+    });
+
+    expect(summary.attempted).toBe(2);
+    expect(summary.readings).toBe(2);
+    expect(summary.failed).toBe(0);
+    // Passages are not questions and must not inflate the question count.
+    expect(summary.generated).toBe(0);
+  });
+
+  it('leaves passages unpublished, so the library is never filled without a human reading it', async () => {
+    await ingestSourceDocument(pool, {
+      formId: 'std5',
+      subjectId: SUBJECT_ID,
+      title: 'Primary Mathematics 5',
+      pages: sourcePages(),
+    });
+
+    await runAgent(pool, { llm: llmReturningPassage(), kinds: ['reading'], limit: 1 });
+
+    const drafts = await listGeneratedReadings(pool, { published: false });
+    expect(drafts).toHaveLength(1);
+    expect(drafts[0]?.body.length).toBeGreaterThan(0);
+    expect(await listGeneratedReadings(pool, { published: true })).toEqual([]);
+  });
+
+  it('keeps going when a passage fails, and logs it', async () => {
+    await ingestSourceDocument(pool, {
+      formId: 'std5',
+      subjectId: SUBJECT_ID,
+      title: 'Primary Mathematics 5',
+      pages: sourcePages(),
+    });
+
+    const topics = await topicCount();
+    // Fails on the first topic, then writes a proper passage for the rest.
+    const summary = await runAgent(pool, {
+      llm: llmFailingFirst(1, validPassage()),
+      kinds: ['reading'],
+      limit: 200,
+    });
+
+    expect(summary.attempted).toBe(topics);
+    expect(summary.failed).toBe(1);
+    expect(summary.readings).toBe(topics - 1);
+    expect((await listAgentRuns(pool)).some((run) => run.status === 'failed')).toBe(true);
   });
 });

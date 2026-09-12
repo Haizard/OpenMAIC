@@ -7,6 +7,7 @@ import {
   type ContentKind,
   type ContentLlm,
 } from '@/lib/academic/content-bank';
+import { generateReadingForTopic } from '@/lib/academic/reading-gen';
 import type { SourceLanguage } from '@/lib/academic/source';
 
 /**
@@ -48,19 +49,55 @@ export const AGENT_RETRY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
  */
 export const AGENT_KINDS = ['homework', 'practice', 'quiz'] as const;
 
+/**
+ * Reading passages are planned alongside bank items but are not one of them: a passage is a
+ * different shape, lives in `academic_readings`, and goes through its own generation path.
+ */
+export const AGENT_READING_KIND = 'reading';
+
+export type AgentKind = ContentKind | typeof AGENT_READING_KIND;
+
+/** Everything the agent stocks when nobody tells it otherwise. */
+export const DEFAULT_AGENT_KINDS: readonly AgentKind[] = [...AGENT_KINDS, AGENT_READING_KIND];
+
+/**
+ * One passage per topic.
+ *
+ * A single passage a student can actually finish beats a stack they abandon, and the agent tops
+ * up later if the library is thin.
+ */
+export const AGENT_TARGET_READINGS_PER_TOPIC = 1;
+
+/** True when the subject has a live book big enough to generate from. Shared by both plans. */
+const HAS_ENOUGH_SOURCE = `COALESCE((
+         SELECT SUM(doc.char_count)
+           FROM academic_source_documents doc
+          WHERE doc.subject_id = sj.id
+            AND doc.superseded_at IS NULL
+            AND doc.status = 'ready'
+       ), 0) >= $1`;
+
+interface GapRow {
+  subject_id: string;
+  subject_name: string;
+  topic_id: string;
+  topic_name: string;
+  item_count: string | number;
+}
+
 export interface AgentWorkItem {
   readonly subjectId: string;
   readonly subjectName: string;
   readonly topicId: string;
   readonly topicName: string;
-  readonly kind: ContentKind;
+  readonly kind: AgentKind;
   readonly haveItems: number;
   readonly wantItems: number;
 }
 
 export interface PlanAgentWorkOptions {
   readonly subjectId?: string;
-  readonly kinds?: readonly ContentKind[];
+  readonly kinds?: readonly AgentKind[];
   readonly targetItems?: number;
   readonly limit?: number;
 }
@@ -77,41 +114,52 @@ export async function planAgentWork(
   db: AcademicDb,
   options: PlanAgentWorkOptions = {},
 ): Promise<readonly AgentWorkItem[]> {
-  const kinds = options.kinds?.length ? options.kinds : AGENT_KINDS;
-  const target = options.targetItems ?? AGENT_TARGET_ITEMS_PER_TOPIC;
+  const kinds = options.kinds?.length ? options.kinds : DEFAULT_AGENT_KINDS;
   const limit = options.limit ?? AGENT_MAX_TOPICS_PER_RUN;
 
   const work: AgentWorkItem[] = [];
   for (const kind of kinds) {
-    const result = await db.query<{
-      subject_id: string;
-      subject_name: string;
-      topic_id: string;
-      topic_name: string;
-      item_count: string | number;
-    }>(
-      `SELECT sj.id AS subject_id, sj.name AS subject_name,
-              t.id AS topic_id, t.name AS topic_name,
-              COALESCE(live.item_count, 0) AS item_count
-         FROM curriculum_topics t
-         JOIN curriculum_subjects sj ON sj.id = t.subject_id
-         LEFT JOIN LATERAL (
-           SELECT COUNT(*) AS item_count
-             FROM academic_content_items ci
-            WHERE ci.topic_id = t.id AND ci.kind = $3 AND ci.status IN ('draft', 'published')
-         ) live ON true
-         WHERE COALESCE(live.item_count, 0) < $2
-           AND COALESCE((
-                 SELECT SUM(doc.char_count)
-                   FROM academic_source_documents doc
-                  WHERE doc.subject_id = sj.id
-                    AND doc.superseded_at IS NULL
-                    AND doc.status = 'ready'
-               ), 0) >= $1
-           AND ($4::text IS NULL OR sj.id = $4)
-         ORDER BY COALESCE(live.item_count, 0), sj.name, t.sort_order, t.name`,
-      [MIN_SOURCE_CHARS, target, kind, options.subjectId ?? null],
-    );
+    const isReading = kind === AGENT_READING_KIND;
+    const target = isReading
+      ? AGENT_TARGET_READINGS_PER_TOPIC
+      : (options.targetItems ?? AGENT_TARGET_ITEMS_PER_TOPIC);
+
+    const result = isReading
+      ? await db.query<GapRow>(
+          `SELECT sj.id AS subject_id, sj.name AS subject_name,
+                  t.id AS topic_id, t.name AS topic_name,
+                  COALESCE(live.item_count, 0) AS item_count
+             FROM curriculum_topics t
+             JOIN curriculum_subjects sj ON sj.id = t.subject_id
+             LEFT JOIN LATERAL (
+               SELECT COUNT(*) AS item_count
+                 FROM academic_readings r
+                WHERE r.topic_id = t.id AND r.source = 'generated'
+             ) live ON true
+             WHERE COALESCE(live.item_count, 0) < $2
+               AND ${HAS_ENOUGH_SOURCE}
+               AND ($3::text IS NULL OR sj.id = $3)
+             ORDER BY COALESCE(live.item_count, 0), sj.name, t.sort_order, t.name`,
+          [MIN_SOURCE_CHARS, target, options.subjectId ?? null],
+        )
+      : await db.query<GapRow>(
+          `SELECT sj.id AS subject_id, sj.name AS subject_name,
+                  t.id AS topic_id, t.name AS topic_name,
+                  COALESCE(live.item_count, 0) AS item_count
+             FROM curriculum_topics t
+             JOIN curriculum_subjects sj ON sj.id = t.subject_id
+             LEFT JOIN LATERAL (
+               SELECT COUNT(*) AS item_count
+                 FROM academic_content_items ci
+                WHERE ci.topic_id = t.id AND ci.kind = $3
+                  AND ci.status IN ('draft', 'published')
+             ) live ON true
+             WHERE COALESCE(live.item_count, 0) < $2
+               AND ${HAS_ENOUGH_SOURCE}
+               AND ($4::text IS NULL OR sj.id = $4)
+             ORDER BY COALESCE(live.item_count, 0), sj.name, t.sort_order, t.name`,
+          [MIN_SOURCE_CHARS, target, kind, options.subjectId ?? null],
+        );
 
     for (const row of result.rows) {
       work.push({
@@ -169,7 +217,7 @@ export interface AgentAttempt {
   readonly subjectName: string;
   readonly topicId: string;
   readonly topicName: string;
-  readonly kind: ContentKind;
+  readonly kind: AgentKind;
   readonly status: 'done' | 'failed';
   readonly itemCount: number;
   readonly message: string;
@@ -179,6 +227,8 @@ export interface AgentRunSummary {
   readonly attempted: number;
   readonly generated: number;
   readonly failed: number;
+  /** Reading passages written, counted apart from questions because they are not the same thing. */
+  readonly readings: number;
   readonly attempts: readonly AgentAttempt[];
 }
 
@@ -187,7 +237,7 @@ export interface RunAgentOptions {
   readonly model?: string;
   readonly limit?: number;
   readonly subjectId?: string;
-  readonly kinds?: readonly ContentKind[];
+  readonly kinds?: readonly AgentKind[];
   readonly language?: SourceLanguage;
 }
 
@@ -211,6 +261,38 @@ export async function runAgent(
 
   for (const item of work) {
     try {
+      if (item.kind === AGENT_READING_KIND) {
+        const reading = await generateReadingForTopic(db, {
+          subjectId: item.subjectId,
+          topicId: item.topicId,
+          llm: options.llm,
+          ...(options.model ? { model: options.model } : {}),
+          ...(options.language ? { language: options.language } : {}),
+        });
+
+        if (!reading.ok) {
+          attempts.push(
+            await recordAttempt(db, {
+              ...item,
+              status: 'failed',
+              itemCount: 0,
+              message: reading.message,
+            }),
+          );
+          continue;
+        }
+
+        attempts.push(
+          await recordAttempt(db, {
+            ...item,
+            status: 'done',
+            itemCount: 1,
+            message: `Wrote a reading passage: ${reading.reading.title}`,
+          }),
+        );
+        continue;
+      }
+
       const result = await generateContentForTopic(db, {
         subjectId: item.subjectId,
         topicId: item.topicId,
@@ -259,8 +341,13 @@ export async function runAgent(
 
   return {
     attempted: attempts.length,
-    generated: attempts.reduce((total, attempt) => total + attempt.itemCount, 0),
+    generated: attempts
+      .filter((attempt) => attempt.kind !== AGENT_READING_KIND)
+      .reduce((total, attempt) => total + attempt.itemCount, 0),
     failed: attempts.filter((attempt) => attempt.status === 'failed').length,
+    readings: attempts.filter(
+      (attempt) => attempt.kind === AGENT_READING_KIND && attempt.status === 'done',
+    ).length,
     attempts,
   };
 }

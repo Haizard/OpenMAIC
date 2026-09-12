@@ -252,7 +252,7 @@ export function buildGenerationPrompt(input: GenerationPromptInput): string {
     .join('\n');
 }
 
-async function resolveScope(
+export async function resolveScope(
   db: AcademicDb,
   subjectId: string,
   topicId: string | undefined,

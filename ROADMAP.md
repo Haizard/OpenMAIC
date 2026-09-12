@@ -13,8 +13,8 @@ This file is the coding-agent contract for turning OpenMAIC into an academic pro
 
 **Product status:** Slices 0–6 complete and tested (227 tests, commit 09eb44d). The AI content
 platform is built through **A (ingest), B (generation), C (review), D (delivery), E (quality
-loop)**, **F (the operator agent)** and **G (quizzes)** — 369 academic tests green. **None of it
-is pushed: the push needs Haitham's credentials.**
+loop)**, **F (the operator agent)**, **G (quizzes)** and **H (the reading library)** — 397 academic
+tests green. **None of it is pushed: the push needs Haitham's credentials.**
 
 **Phases D and F are complete.** Homework, holiday packages and practice all draw from the shared
 bank with per-student mixing, and every one of them falls back to what it did before when the bank
@@ -466,6 +466,40 @@ How it works, and the four calls made:
   an open decision above.
 
 19 new tests (`tests/academic/quiz-bank.test.ts`).
+
+### Phase H — Generate the reading library — DONE 2026-09-12
+
+Deferred back in Phase B, and it is still the only one of the four pillars whose content a human
+has to write. The reading library is 21 hand-seeded lesson notes; everything else a student sees is
+generated from Haitham's uploads. Under rule 9 that mismatch is not sustainable — the Read pillar
+has to be fed the same way the other three are.
+
+The table already anticipated this: `academic_readings.source` has had a `generated` value since
+Slice 2.
+
+- [x] Provenance columns on `academic_readings` (source document, chunks, model, generated_at),
+      added as idempotent ALTERs like the quiz ones
+- [x] `lib/academic/reading-gen.ts` — grounded passage generation, refusing when the source is thin
+- [x] Generated readings land **unpublished**, and go through the same review gate as bank items
+- [x] Operator console: generate and review readings
+- [x] The agent fills readings too, so the whole library does not depend on Haitham clicking
+- [x] Tests: provenance recorded; thin source refused; nothing published without review; a passage
+      reaches the student's library only after it is published (23 tests)
+
+No change was needed to `/learn/read` — `listReadingsForStudent` filters on `published = TRUE` and
+the student's own form, so a published passage simply appears. That is the whole point of keeping
+the review gate at the data layer rather than the view.
+
+Deliberate calls:
+
+- **A passage, not another multiple-choice item.** Phase B refused to force readings into
+  `prompt`/`explanation` because that would have been a lie, and it still would be. Readings keep
+  their own shape: title, summary, body.
+- **One reading per topic is the target, not ten.** A single good passage a student can actually
+  finish beats a stack they abandon, and the agent can be told to top up later.
+- **The seeded notes stay.** They are hand-written and real; generated passages join them rather
+  than replacing them, and the library falls back to the seeded set for any topic with no
+  generated passage.
 
 ---
 

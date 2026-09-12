@@ -34,6 +34,19 @@ interface TopicRef {
   name: string;
 }
 
+interface GeneratedReading {
+  id: string;
+  topicId: string | null;
+  title: string;
+  summary: string;
+  body: string;
+  kind: string;
+  readingMinutes: number;
+  published: boolean;
+  model: string | null;
+  generatedAt: string | null;
+}
+
 interface AgentWorkItem {
   subjectId: string;
   subjectName: string;
@@ -118,6 +131,10 @@ export default function OperatorPage() {
   const [agentRunning, setAgentRunning] = useState(false);
   const [agentMessage, setAgentMessage] = useState<string | null>(null);
 
+  const [readings, setReadings] = useState<GeneratedReading[]>([]);
+  const [readingMessage, setReadingMessage] = useState<string | null>(null);
+  const [writingReading, setWritingReading] = useState(false);
+
   useEffect(() => {
     const stored = window.localStorage.getItem(TOKEN_KEY);
     if (stored) {
@@ -189,6 +206,68 @@ export default function OperatorPage() {
   useEffect(() => {
     if (tokenReady && token) void loadAgent(token);
   }, [tokenReady, token, loadAgent]);
+
+  const loadReadings = useCallback(async (activeToken: string) => {
+    const response = await fetch('/api/academic/operator/readings', {
+      headers: { 'x-academic-operator-token': activeToken },
+    });
+    const data = await response.json();
+    if (data.success) setReadings(data.readings as GeneratedReading[]);
+  }, []);
+
+  useEffect(() => {
+    if (tokenReady && token) void loadReadings(token);
+  }, [tokenReady, token, loadReadings]);
+
+  const writeReading = async () => {
+    setError(null);
+    setReadingMessage(null);
+    setWritingReading(true);
+    try {
+      const response = await fetch('/api/academic/operator/readings', {
+        method: 'POST',
+        headers: {
+          'x-academic-operator-token': token,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          subjectId: genSubject,
+          topicId: genTopic,
+          language: genLanguage,
+        }),
+      });
+      const data = await response.json();
+      if (!data.success) {
+        setError(data.message ?? data.error ?? 'Could not write the passage');
+        return;
+      }
+      setReadingMessage('Passage written. It is unpublished until you have read it.');
+      await loadReadings(token);
+    } catch {
+      setError('Could not write the passage');
+    } finally {
+      setWritingReading(false);
+    }
+  };
+
+  const reviewReading = async (id: string, action: 'publish' | 'discard') => {
+    setError(null);
+    setReadingMessage(null);
+    const response = await fetch(`/api/academic/operator/readings/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'x-academic-operator-token': token,
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({ action }),
+    });
+    const data = await response.json();
+    if (!data.success) {
+      setError(data.error ?? 'Update failed');
+      return;
+    }
+    await loadReadings(token);
+  };
 
   const startAgent = async () => {
     setError(null);
@@ -575,13 +654,75 @@ export default function OperatorPage() {
             />
           </label>
 
-          <div className="flex items-end">
+          <div className="flex items-end gap-2">
             <Button type="submit" disabled={generating || !genSubject}>
               {generating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Generate
             </Button>
+            <Button
+              type="button"
+              variant="outline"
+              // A passage belongs to a topic, so this needs one picked; a subject-wide passage
+              // would be written from the book's opening pages and fit no topic in particular.
+              disabled={writingReading || !genTopic}
+              onClick={writeReading}
+            >
+              {writingReading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Write a reading passage
+            </Button>
           </div>
         </form>
+      </section>
+
+      <section className="mb-8 rounded-lg border p-4">
+        <h2 className="mb-3 text-lg font-medium">Reading passages ({readings.length})</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Written from the same book, and unpublished until you have read one.
+        </p>
+        {readingMessage ? <p className="mb-3 text-sm text-emerald-700">{readingMessage}</p> : null}
+        {readings.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No generated passages yet. Pick a topic above and write one.
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {readings.map((reading) => (
+              <li key={reading.id} className="rounded-md border p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-medium">{reading.title}</p>
+                  <span
+                    className={
+                      reading.published ? 'text-xs text-emerald-700' : 'text-xs text-muted-foreground'
+                    }
+                  >
+                    {reading.published ? 'published' : 'unpublished'}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">{reading.summary}</p>
+                <p className="mt-2 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-muted-foreground">
+                  {reading.body}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {reading.kind} · {reading.readingMinutes} min · {reading.model ?? 'unknown model'}
+                </p>
+                <div className="mt-3 flex gap-2">
+                  {reading.published ? null : (
+                    <Button size="sm" onClick={() => reviewReading(reading.id, 'publish')}>
+                      Publish
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => reviewReading(reading.id, 'discard')}
+                  >
+                    Discard
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="mb-8 rounded-lg border p-4">

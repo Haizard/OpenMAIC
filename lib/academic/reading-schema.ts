@@ -40,6 +40,13 @@ CREATE TABLE IF NOT EXISTS academic_reading_progress (
   UNIQUE (student_id, reading_id)
 );
 
+-- Provenance, added in Phase H for AI-generated passages. Idempotent ALTERs rather than new
+-- columns in the CREATE above, so databases built by an earlier revision are upgraded in place.
+ALTER TABLE academic_readings ADD COLUMN IF NOT EXISTS source_document_id TEXT;
+ALTER TABLE academic_readings ADD COLUMN IF NOT EXISTS source_chunk_ids JSONB NOT NULL DEFAULT '[]';
+ALTER TABLE academic_readings ADD COLUMN IF NOT EXISTS model TEXT;
+ALTER TABLE academic_readings ADD COLUMN IF NOT EXISTS generated_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS academic_readings_topic_idx ON academic_readings (topic_id);
 CREATE INDEX IF NOT EXISTS academic_reading_progress_student_idx
   ON academic_reading_progress (student_id);
